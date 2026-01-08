@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { validateUserCredentials } from '@/lib/supabase-storage';
+import { getSupabase } from '@/lib/supabase';
 
 export interface User {
   id: string;
@@ -17,7 +18,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; redirectTo?: string }>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
 }
@@ -90,34 +91,93 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; redirectTo?: string }> => {
     try {
-      // validateUserCredentials handles both Supabase and localStorage fallback
-      const userData = await validateUserCredentials(email, password);
+      const supabase = getSupabase();
       
-      if (userData) {
-        const sessionUser: User = {
-          id: userData.id,
-          email: userData.email,
-          name: userData.name,
-          role: userData.role as User['role'],
-          department: userData.department,
-          loginTime: new Date().toISOString(),
-        };
+      // If Supabase is not configured, use localStorage fallback
+      if (!supabase) {
+        const userData = await validateUserCredentials(email, password);
+        
+        if (userData) {
+          const sessionUser: User = {
+            id: userData.id,
+            email: userData.email,
+            name: userData.name,
+            role: userData.role as User['role'],
+            department: userData.department,
+            loginTime: new Date().toISOString(),
+          };
 
-        localStorage.setItem('currentUser', JSON.stringify(sessionUser));
-        setUser(sessionUser);
-        return { success: true };
-      } else {
+          localStorage.setItem('currentUser', JSON.stringify(sessionUser));
+          setUser(sessionUser);
+          return { success: true, redirectTo: '/' };
+        } else {
+          return { success: false, error: 'Invalid email or password' };
+        }
+      }
+
+      // 1. Authenticate with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError || !authData.user) {
         return { success: false, error: 'Invalid email or password' };
       }
+
+      // 2. Fetch user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, email, name, role, department, is_active')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        await supabase.auth.signOut();
+        return { success: false, error: 'Account profile not found' };
+      }
+
+      // 3. Check if user is active
+      if (!profile.is_active) {
+        await supabase.auth.signOut();
+        return { success: false, error: 'Account is disabled. Contact administrator.' };
+      }
+
+      // 4. Create session user
+      const sessionUser: User = {
+        id: profile.id,
+        email: profile.email || authData.user.email || email,
+        name: profile.name || 'User',
+        role: (profile.role as User['role']) || 'staff',
+        department: profile.department,
+        loginTime: new Date().toISOString(),
+      };
+
+      localStorage.setItem('currentUser', JSON.stringify(sessionUser));
+      setUser(sessionUser);
+
+      // 5. Determine redirect based on role
+      let redirectTo = '/';
+      if (email === 'admin@autocarpets.com' || profile.role === 'admin') {
+        redirectTo = '/'; // Admin goes to dashboard
+      }
+
+      return { success: true, redirectTo };
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, error: 'An error occurred during login' };
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // Sign out from Supabase Auth
+    const supabase = getSupabase();
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    
     localStorage.removeItem('currentUser');
     setUser(null);
     router.push('/login');

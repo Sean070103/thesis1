@@ -599,7 +599,7 @@ export async function getUsersFromSupabase() {
   }
 
   const { data, error } = await supabase
-    .from('users')
+    .from('profiles')
     .select('*')
     .order('created_at', { ascending: false });
 
@@ -620,7 +620,7 @@ export async function getUserByEmail(email: string) {
   }
 
   const { data, error } = await supabase
-    .from('users')
+    .from('profiles')
     .select('*')
     .eq('email', email)
     .single();
@@ -665,29 +665,44 @@ export async function createUserInSupabase(user: {
     return { success: true };
   }
 
-  // Check if user exists
-  const existing = await getUserByEmail(user.email);
-  if (existing) {
-    return { success: false, error: 'User with this email already exists' };
+  // 1. Create user in Supabase Auth
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email: user.email,
+    password: user.password,
+    options: {
+      data: {
+        name: user.name,
+        role: user.role,
+        department: user.department,
+      },
+    },
+  });
+
+  if (authError) {
+    console.error('Error creating auth user:', authError);
+    return { success: false, error: authError.message };
   }
 
-  // Hash the password before storing
-  const hashedPassword = await bcrypt.hash(user.password, 10);
+  if (!authData.user) {
+    return { success: false, error: 'Failed to create user' };
+  }
 
-  const { error } = await supabase
-    .from('users')
+  // 2. Create profile in profiles table
+  const { error: profileError } = await supabase
+    .from('profiles')
     .insert({
+      id: authData.user.id,
       email: user.email,
       name: user.name,
-      password_hash: hashedPassword,
       role: user.role,
       department: user.department,
       is_active: true,
     });
 
-  if (error) {
-    console.error('Error creating user:', error);
-    return { success: false, error: error.message };
+  if (profileError) {
+    console.error('Error creating profile:', profileError);
+    // Note: Auth user is created but profile failed - may need cleanup
+    return { success: false, error: profileError.message };
   }
 
   return { success: true };
@@ -726,39 +741,44 @@ export async function validateUserCredentials(email: string, password: string) {
     return null;
   }
 
-  // Get user by email first
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('email', email)
-    .eq('is_active', true)
-    .single();
+  // 1. Authenticate with Supabase Auth
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-  if (error || !data) {
+  if (authError || !authData.user) {
+    console.error('Auth error:', authError?.message);
     return null;
   }
 
-  // Verify password using bcrypt
-  const isHashed = data.password_hash && data.password_hash.startsWith('$2');
-  let isValid = false;
-  
-  if (isHashed) {
-    isValid = await bcrypt.compare(password, data.password_hash);
-  } else {
-    // Plain text comparison for backwards compatibility
-    isValid = data.password_hash === password;
+  // 2. Fetch user profile from profiles table
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id, email, name, role, department, is_active')
+    .eq('id', authData.user.id)
+    .single();
+
+  if (profileError || !profile) {
+    console.error('Profile error:', profileError?.message);
+    // Sign out if profile not found
+    await supabase.auth.signOut();
+    return null;
   }
 
-  if (!isValid) {
+  // 3. Check if user is active
+  if (!profile.is_active) {
+    console.error('Account is disabled');
+    await supabase.auth.signOut();
     return null;
   }
 
   return {
-    id: data.id,
-    email: data.email,
-    name: data.name,
-    role: data.role,
-    department: data.department,
+    id: profile.id,
+    email: profile.email || authData.user.email,
+    name: profile.name || 'User',
+    role: profile.role || 'staff',
+    department: profile.department,
   };
 }
 
@@ -773,7 +793,7 @@ export async function deleteUserFromSupabase(id: string): Promise<boolean> {
   }
 
   const { error } = await supabase
-    .from('users')
+    .from('profiles')
     .delete()
     .eq('id', id);
 

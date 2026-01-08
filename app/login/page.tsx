@@ -49,7 +49,8 @@ export default function LoginPage() {
       const result = await login(email, password);
 
       if (result.success) {
-        router.push('/');
+        // Use redirect path from login result, default to dashboard
+        router.push(result.redirectTo || '/');
       } else {
         setError(result.error || 'Invalid email or password');
       }
