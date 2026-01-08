@@ -1,5 +1,6 @@
 import { getSupabase, isSupabaseConfigured } from './supabase';
 import { Material, MaterialTransaction, Defect, Alert } from '@/types';
+import bcrypt from 'bcryptjs';
 
 // Helper to get localStorage data safely
 const getFromStorage = <T>(key: string, defaultValue: T): T => {
@@ -647,11 +648,14 @@ export async function createUserInSupabase(user: {
       return { success: false, error: 'User with this email already exists' };
     }
     
+    // Hash password for localStorage too
+    const hashedPassword = await bcrypt.hash(user.password, 10);
+    
     users.push({
       id: generateId(),
       email: user.email,
       name: user.name,
-      password: user.password,
+      password: hashedPassword,
       role: user.role,
       department: user.department,
       isActive: true,
@@ -667,12 +671,15 @@ export async function createUserInSupabase(user: {
     return { success: false, error: 'User with this email already exists' };
   }
 
+  // Hash the password before storing
+  const hashedPassword = await bcrypt.hash(user.password, 10);
+
   const { error } = await supabase
     .from('users')
     .insert({
       email: user.email,
       name: user.name,
-      password_hash: user.password, // In production, hash this!
+      password_hash: hashedPassword,
       role: user.role,
       department: user.department,
       is_active: true,
@@ -692,28 +699,57 @@ export async function validateUserCredentials(email: string, password: string) {
   if (!supabase) {
     // Fallback to localStorage
     const users = getFromStorage<any[]>('users', []);
-    const user = users.find(u => u.email === email && u.password === password);
+    const user = users.find(u => u.email === email);
+    
     if (user) {
-      return {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        department: user.department,
-      };
+      // Check if password is hashed (bcrypt hashes start with $2)
+      const isHashed = user.password && user.password.startsWith('$2');
+      let isValid = false;
+      
+      if (isHashed) {
+        isValid = await bcrypt.compare(password, user.password);
+      } else {
+        // Plain text comparison for backwards compatibility
+        isValid = user.password === password;
+      }
+      
+      if (isValid) {
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          department: user.department,
+        };
+      }
     }
     return null;
   }
 
+  // Get user by email first
   const { data, error } = await supabase
     .from('users')
     .select('*')
     .eq('email', email)
-    .eq('password_hash', password) // In production, compare hashed passwords!
     .eq('is_active', true)
     .single();
 
   if (error || !data) {
+    return null;
+  }
+
+  // Verify password using bcrypt
+  const isHashed = data.password_hash && data.password_hash.startsWith('$2');
+  let isValid = false;
+  
+  if (isHashed) {
+    isValid = await bcrypt.compare(password, data.password_hash);
+  } else {
+    // Plain text comparison for backwards compatibility
+    isValid = data.password_hash === password;
+  }
+
+  if (!isValid) {
     return null;
   }
 
