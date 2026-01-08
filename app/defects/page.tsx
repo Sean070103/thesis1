@@ -1,8 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2, Search, CheckCircle, AlertTriangle } from 'lucide-react';
-import { getDefects, saveDefect, deleteDefect, getMaterials, generateId } from '@/lib/storage';
+import { Plus, Edit, Trash2, Search, AlertTriangle, Loader2 } from 'lucide-react';
+import { 
+  getDefectsFromSupabase, 
+  saveDefectToSupabase, 
+  deleteDefectFromSupabase, 
+  getMaterialsFromSupabase,
+  generateId 
+} from '@/lib/supabase-storage';
 import { Defect, Material } from '@/types';
 
 export default function DefectsPage() {
@@ -11,6 +17,8 @@ export default function DefectsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDefect, setEditingDefect] = useState<Defect | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<Partial<Defect>>({
     materialCode: '',
     materialDescription: '',
@@ -27,12 +35,18 @@ export default function DefectsPage() {
     loadData();
   }, []);
 
-  const loadData = () => {
-    setDefects(getDefects());
-    setMaterials(getMaterials());
+  const loadData = async () => {
+    setIsLoading(true);
+    const [defectsData, materialsData] = await Promise.all([
+      getDefectsFromSupabase(),
+      getMaterialsFromSupabase()
+    ]);
+    setDefects(defectsData);
+    setMaterials(materialsData);
+    setIsLoading(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validation
@@ -58,13 +72,8 @@ export default function DefectsPage() {
     }
     
     const selectedMaterial = materials.find(m => m.materialCode === formData.materialCode);
-    
-    // Check if defect quantity exceeds available quantity
-    if (selectedMaterial && formData.quantity > selectedMaterial.quantity) {
-      if (!confirm(`Warning: Reporting defect for ${formData.quantity} ${formData.unit || selectedMaterial.unit} but only ${selectedMaterial.quantity} available. Continue anyway?`)) {
-        return;
-      }
-    }
+
+    setIsSaving(true);
     
     const defect: Defect = {
       id: editingDefect?.id || generateId(),
@@ -81,10 +90,17 @@ export default function DefectsPage() {
       resolutionNotes: formData.resolutionNotes?.trim(),
     };
     
-    saveDefect(defect);
-    loadData();
-    setIsModalOpen(false);
-    resetForm();
+    const success = await saveDefectToSupabase(defect);
+    
+    if (success) {
+      await loadData();
+      setIsModalOpen(false);
+      resetForm();
+    } else {
+      alert('Failed to save defect. Please try again.');
+    }
+    
+    setIsSaving(false);
   };
 
   const handleEdit = (defect: Defect) => {
@@ -93,10 +109,14 @@ export default function DefectsPage() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this defect record?')) {
-      deleteDefect(id);
-      loadData();
+      const success = await deleteDefectFromSupabase(id);
+      if (success) {
+        await loadData();
+      } else {
+        alert('Failed to delete defect. Please try again.');
+      }
     }
   };
 
@@ -125,25 +145,6 @@ export default function DefectsPage() {
     setEditingDefect(null);
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'critical': return 'bg-red-100 text-red-800';
-      case 'high': return 'bg-orange-100 text-orange-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'resolved': return 'bg-green-100 text-green-800';
-      case 'in-progress': return 'bg-blue-100 text-blue-800';
-      case 'open': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const filteredDefects = defects.filter(d => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
@@ -158,102 +159,120 @@ export default function DefectsPage() {
   });
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-            Defects Module
-          </h1>
-          <p className="text-slate-600 mt-2 text-lg">Monitor and log defective or damaged materials</p>
-        </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setIsModalOpen(true);
-          }}
-          className="premium-button flex items-center space-x-2"
-        >
-          <Plus size={20} />
-          <span>Report Defect</span>
-        </button>
-      </div>
-
-      <div className="premium-card p-4">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
-          <input
-            type="text"
-            placeholder="Search defects..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
-          />
+    <div className="min-h-screen bg-black">
+      {/* Header */}
+      <div className="bg-slate-900 border-b border-slate-800 px-8 py-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-xl font-semibold text-white">Defects Module</h1>
+            <p className="text-sm text-slate-400 mt-1">Monitor and log defective or damaged materials</p>
+          </div>
+          <button
+            onClick={() => {
+              resetForm();
+              setIsModalOpen(true);
+            }}
+            className="px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
+          >
+            <Plus size={18} />
+            Report Defect
+          </button>
         </div>
       </div>
 
-      <div className="premium-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gradient-to-r from-slate-50 to-slate-100">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Material Code</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Description</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Defect Type</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Quantity</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Severity</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Reported By</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-slate-100">
-              {filteredDefects.length === 0 ? (
+      <div className="p-8 space-y-6">
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+            <input
+              type="text"
+              placeholder="Search defects..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 border border-slate-700 rounded-lg focus:ring-2 focus:ring-slate-600 focus:border-slate-600 transition-all bg-slate-900 text-white placeholder-slate-500"
+            />
+          </div>
+        </div>
+
+        <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-900">
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center">
-                      <div className="p-4 bg-slate-100 rounded-full mb-4">
-                        <AlertTriangle className="text-slate-400" size={32} />
-                      </div>
-                      <p className="text-slate-600 font-medium mb-1">No defects found</p>
-                      <p className="text-slate-400 text-sm">Report your first defect to get started</p>
-                    </div>
-                  </td>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Material Code</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Description</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Defect Type</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Quantity</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Severity</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Reported By</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Actions</th>
                 </tr>
-              ) : (
-                filteredDefects
-                  .sort((a, b) => new Date(b.reportedDate).getTime() - new Date(a.reportedDate).getTime())
-                  .map((defect) => (
-                    <tr key={defect.id} className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 transition-colors group">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+              </thead>
+              <tbody className="bg-slate-800 divide-y divide-slate-700">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={9} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center">
+                        <Loader2 className="animate-spin text-amber-500 mb-4" size={32} />
+                        <p className="text-slate-400">Loading defects...</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredDefects.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center">
+                        <div className="p-4 bg-slate-900 rounded-full mb-4">
+                          <AlertTriangle className="text-slate-400" size={32} />
+                        </div>
+                        <p className="text-slate-300 font-medium mb-1">No defects found</p>
+                        <p className="text-slate-500 text-sm">Report your first defect to get started</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredDefects.map((defect) => (
+                    <tr key={defect.id} className="hover:bg-slate-700 transition-colors group">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
                         {new Date(defect.reportedDate).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">{defect.materialCode}</td>
-                      <td className="px-6 py-4 text-sm text-slate-700 max-w-xs truncate">{defect.materialDescription}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{defect.defectType}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">{defect.quantity} {defect.unit}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{defect.materialCode}</td>
+                      <td className="px-6 py-4 text-sm text-slate-300 max-w-xs truncate">{defect.materialDescription}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{defect.defectType}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-white">{defect.quantity} {defect.unit}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getSeverityColor(defect.severity)}`}>
+                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                          defect.severity === 'critical' ? 'bg-red-900 text-red-300' :
+                          defect.severity === 'high' ? 'bg-orange-900 text-orange-300' :
+                          defect.severity === 'medium' ? 'bg-amber-900 text-amber-300' :
+                          'bg-blue-900 text-blue-300'
+                        }`}>
                           {defect.severity.toUpperCase()}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(defect.status)}`}>
+                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                          defect.status === 'resolved' ? 'bg-emerald-900 text-emerald-300' :
+                          defect.status === 'in-progress' ? 'bg-blue-900 text-blue-300' :
+                          'bg-amber-900 text-amber-300'
+                        }`}>
                           {defect.status.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{defect.reportedBy}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{defect.reportedBy}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => handleEdit(defect)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="p-2 text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
                           >
                             <Edit size={18} />
                           </button>
                           <button
                             onClick={() => handleDelete(defect.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-2 text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
                           >
                             <Trash2 size={18} />
                           </button>
@@ -261,26 +280,27 @@ export default function DefectsPage() {
                       </td>
                     </tr>
                   ))
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="premium-card p-8 w-full max-w-md max-h-[90vh] overflow-y-auto animate-fade-in">
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-6">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="premium-card p-8 w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar animate-slide-in">
+            <h2 className="text-2xl font-bold text-white mb-6">
               {editingDefect ? 'Edit Defect' : 'Report Defect'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Material</label>
+                <label className="label-dark">Material</label>
                 <select
                   required
                   value={formData.materialCode}
                   onChange={(e) => handleMaterialChange(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                  className="select-dark"
                   disabled={!!editingDefect}
                 >
                   <option value="">Select Material</option>
@@ -292,46 +312,47 @@ export default function DefectsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Defect Type</label>
+                <label className="label-dark">Defect Type</label>
                 <input
                   type="text"
                   required
                   value={formData.defectType}
                   onChange={(e) => setFormData({ ...formData, defectType: e.target.value })}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                  className="input-dark"
                   placeholder="e.g., Damage, Contamination, Expired"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Quantity</label>
+                  <label className="label-dark">Quantity</label>
                   <input
                     type="number"
                     required
                     min="0"
                     value={formData.quantity}
                     onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) })}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                    className="input-dark"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Unit</label>
+                  <label className="label-dark">Unit</label>
                   <input
                     type="text"
                     required
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                    className="input-dark"
+                    placeholder="e.g., PCS, KG"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Severity</label>
+                <label className="label-dark">Severity</label>
                 <select
                   required
                   value={formData.severity}
                   onChange={(e) => setFormData({ ...formData, severity: e.target.value as any })}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                  className="select-dark"
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -340,34 +361,36 @@ export default function DefectsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Description</label>
+                <label className="label-dark">Description</label>
                 <textarea
                   required
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                  className="textarea-dark"
                   rows={3}
+                  placeholder="Describe the defect..."
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Reported By</label>
+                <label className="label-dark">Reported By</label>
                 <input
                   type="text"
                   required
                   value={formData.reportedBy}
                   onChange={(e) => setFormData({ ...formData, reportedBy: e.target.value })}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                  className="input-dark"
+                  placeholder="Enter reporter name"
                 />
               </div>
               {editingDefect && (
                 <>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Status</label>
+                    <label className="label-dark">Status</label>
                     <select
                       required
                       value={formData.status}
                       onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                      className="select-dark"
                     >
                       <option value="open">Open</option>
                       <option value="in-progress">In Progress</option>
@@ -376,12 +399,13 @@ export default function DefectsPage() {
                   </div>
                   {formData.status === 'resolved' && (
                     <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">Resolution Notes</label>
+                      <label className="label-dark">Resolution Notes</label>
                       <textarea
                         value={formData.resolutionNotes || ''}
                         onChange={(e) => setFormData({ ...formData, resolutionNotes: e.target.value })}
-                        className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                        className="textarea-dark"
                         rows={3}
+                        placeholder="Describe how the defect was resolved..."
                       />
                     </div>
                   )}
@@ -390,9 +414,17 @@ export default function DefectsPage() {
               <div className="flex space-x-3 pt-4">
                 <button
                   type="submit"
-                  className="flex-1 premium-button"
+                  disabled={isSaving}
+                  className="flex-1 premium-button flex items-center justify-center gap-2"
                 >
-                  {editingDefect ? 'Update' : 'Report'}
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="animate-spin" size={18} />
+                      Saving...
+                    </>
+                  ) : (
+                    editingDefect ? 'Update' : 'Report'
+                  )}
                 </button>
                 <button
                   type="button"
@@ -412,4 +444,3 @@ export default function DefectsPage() {
     </div>
   );
 }
-

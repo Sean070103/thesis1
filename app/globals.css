@@ -4,13 +4,14 @@
 
 :root {
   --foreground-rgb: 15, 23, 42;
-  --background-start-rgb: 248, 250, 252;
-  --background-end-rgb: 255, 255, 255;
+  --background-start-rgb: 2, 6, 23;
+  --background-end-rgb: 15, 23, 42;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-start-rgb));
+  background: linear-gradient(to bottom, rgb(var(--background-start-rgb)), rgb(var(--background-end-rgb)));
+  min-height: 100vh;
 }
 
 /* Custom scrollbar */
@@ -45,18 +46,38 @@ aside ::-webkit-scrollbar-thumb:hover {
   background: #64748b;
 }
 
-/* Premium card styles */
+/* Premium card styles - Dark Mode */
 @layer components {
   .premium-card {
-    @apply bg-white rounded-xl shadow-sm border border-slate-200;
+    @apply bg-slate-900 rounded-2xl shadow-2xl border border-slate-700/50 backdrop-blur-sm;
   }
   
   .premium-button {
-    @apply bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-blue-500/50 hover:shadow-xl hover:shadow-blue-500/60 transition-all duration-200 hover:scale-105 active:scale-95;
+    @apply bg-gradient-to-r from-amber-500 to-orange-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98];
   }
   
   .premium-button-secondary {
-    @apply bg-white text-slate-700 px-6 py-3 rounded-xl font-semibold shadow-md border border-slate-200 hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95;
+    @apply bg-slate-800 text-slate-200 px-6 py-3 rounded-xl font-semibold border border-slate-700 hover:bg-slate-700 hover:border-slate-600 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-lg hover:shadow-slate-900/50 hover:border-slate-600 hover:-translate-y-0.5;
+  }
+
+  .input-dark {
+    @apply w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all;
+  }
+
+  .label-dark {
+    @apply block text-sm font-semibold text-slate-300 mb-2;
+  }
+
+  .select-dark {
+    @apply w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all appearance-none cursor-pointer;
+  }
+
+  .textarea-dark {
+    @apply w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all resize-none;
   }
 }
 
@@ -72,8 +93,38 @@ aside ::-webkit-scrollbar-thumb:hover {
   }
 }
 
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
 }
 
 /* Custom scrollbar for activities */
@@ -93,4 +144,44 @@ aside ::-webkit-scrollbar-thumb:hover {
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #475569;
+}
+
+/* Glass effect */
+.glass {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Glow effects */
+.glow-amber {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
+}
+
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+}
+
+/* Table row hover */
+tbody tr {
+  transition: all 0.2s ease;
+}
+
+/* Button ripple effect */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.btn-ripple:hover::after {
+  opacity: 1;
 }

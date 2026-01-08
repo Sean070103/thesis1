@@ -1,8 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Search, FileText } from 'lucide-react';
-import { getTransactions, saveTransaction, getMaterials, saveMaterial, generateId } from '@/lib/storage';
+import { Plus, Search, FileText, Loader2 } from 'lucide-react';
+import { 
+  getTransactionsFromSupabase, 
+  saveTransactionToSupabase, 
+  getMaterialsFromSupabase,
+  updateMaterialQuantity,
+  generateId 
+} from '@/lib/supabase-storage';
 import { MaterialTransaction, Material } from '@/types';
 
 export default function TransactionsPage() {
@@ -10,6 +16,8 @@ export default function TransactionsPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<Partial<MaterialTransaction>>({
     materialCode: '',
     materialDescription: '',
@@ -25,12 +33,18 @@ export default function TransactionsPage() {
     loadData();
   }, []);
 
-  const loadData = () => {
-    setTransactions(getTransactions());
-    setMaterials(getMaterials());
+  const loadData = async () => {
+    setIsLoading(true);
+    const [transactionsData, materialsData] = await Promise.all([
+      getTransactionsFromSupabase(),
+      getMaterialsFromSupabase()
+    ]);
+    setTransactions(transactionsData);
+    setMaterials(materialsData);
+    setIsLoading(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validation
@@ -61,6 +75,8 @@ export default function TransactionsPage() {
         }
       }
     }
+
+    setIsSaving(true);
     
     const transaction: MaterialTransaction = {
       id: generateId(),
@@ -75,22 +91,24 @@ export default function TransactionsPage() {
       notes: formData.notes?.trim(),
     };
     
-    saveTransaction(transaction);
+    const success = await saveTransactionToSupabase(transaction);
     
-    // Update material quantity
-    if (selectedMaterial) {
-      if (transaction.transactionType === 'receiving') {
-        selectedMaterial.quantity += transaction.quantity;
-      } else {
-        selectedMaterial.quantity = Math.max(0, selectedMaterial.quantity - transaction.quantity);
-      }
-      selectedMaterial.lastUpdated = new Date().toISOString();
-      saveMaterial(selectedMaterial);
+    if (success) {
+      // Update material quantity
+      await updateMaterialQuantity(
+        transaction.materialCode, 
+        transaction.quantity, 
+        transaction.transactionType
+      );
+      
+      await loadData();
+      setIsModalOpen(false);
+      resetForm();
+    } else {
+      alert('Failed to save transaction. Please try again.');
     }
     
-    loadData();
-    setIsModalOpen(false);
-    resetForm();
+    setIsSaving(false);
   };
 
   const handleMaterialChange = (materialCode: string) => {
@@ -129,119 +147,129 @@ export default function TransactionsPage() {
   });
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-            Material Transactions
-          </h1>
-          <p className="text-slate-600 mt-2 text-lg">Record material receiving and issuance activities</p>
-        </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="premium-button flex items-center space-x-2"
-        >
-          <Plus size={20} />
-          <span>New Transaction</span>
-        </button>
-      </div>
-
-      <div className="premium-card p-4">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
-          <input
-            type="text"
-            placeholder="Search transactions..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
-          />
+    <div className="min-h-screen bg-black">
+      {/* Header */}
+      <div className="bg-slate-900 border-b border-slate-800 px-8 py-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-xl font-semibold text-white">Material Transactions</h1>
+            <p className="text-sm text-slate-400 mt-1">Record material receiving and issuance activities</p>
+          </div>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
+          >
+            <Plus size={18} />
+            New Transaction
+          </button>
         </div>
       </div>
 
-      <div className="premium-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gradient-to-r from-slate-50 to-slate-100">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Material Code</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Description</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Quantity</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Unit</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">User</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Reference</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-slate-100">
-              {filteredTransactions.length === 0 ? (
+      <div className="p-8 space-y-6">
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+            <input
+              type="text"
+              placeholder="Search transactions..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 border border-slate-700 rounded-lg focus:ring-2 focus:ring-slate-600 focus:border-slate-600 transition-all bg-slate-900 text-white placeholder-slate-500"
+            />
+          </div>
+        </div>
+
+        <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-900">
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center">
-                      <div className="p-4 bg-slate-100 rounded-full mb-4">
-                        <FileText className="text-slate-400" size={32} />
-                      </div>
-                      <p className="text-slate-600 font-medium mb-1">No transactions found</p>
-                      <p className="text-slate-400 text-sm">Create your first transaction to get started</p>
-                    </div>
-                  </td>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Material Code</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Description</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Quantity</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Unit</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">User</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Reference</th>
                 </tr>
-              ) : (
-                filteredTransactions
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                  .map((transaction) => (
-                    <tr key={transaction.id} className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/50 transition-colors group">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+              </thead>
+              <tbody className="bg-slate-800 divide-y divide-slate-700">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center">
+                        <Loader2 className="animate-spin text-amber-500 mb-4" size={32} />
+                        <p className="text-slate-400">Loading transactions...</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center">
+                        <div className="p-4 bg-slate-900 rounded-full mb-4">
+                          <FileText className="text-slate-400" size={32} />
+                        </div>
+                        <p className="text-slate-300 font-medium mb-1">No transactions found</p>
+                        <p className="text-slate-500 text-sm">Create your first transaction to get started</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTransactions.map((transaction) => (
+                    <tr key={transaction.id} className="hover:bg-slate-700 transition-colors group">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
                         {new Date(transaction.date).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${
                           transaction.transactionType === 'receiving'
-                            ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-700'
-                            : 'bg-gradient-to-r from-red-100 to-pink-100 text-red-700'
+                            ? 'bg-emerald-900 text-emerald-300'
+                            : 'bg-blue-900 text-blue-300'
                         }`}>
                           {transaction.transactionType === 'receiving' ? 'Receiving' : 'Issuance'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">{transaction.materialCode}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{transaction.materialDescription}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">{transaction.quantity}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{transaction.unit}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{transaction.user}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{transaction.reference}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{transaction.materialCode}</td>
+                      <td className="px-6 py-4 text-sm text-slate-300 max-w-xs truncate">{transaction.materialDescription}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-white">{transaction.quantity}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">{transaction.unit}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{transaction.user}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">{transaction.reference}</td>
                     </tr>
                   ))
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="premium-card p-8 w-full max-w-md animate-fade-in max-h-[90vh] overflow-y-auto">
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-6">New Transaction</h2>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="premium-card p-8 w-full max-w-md animate-slide-in max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <h2 className="text-2xl font-bold text-white mb-6">New Transaction</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Transaction Type</label>
+                <label className="label-dark">Transaction Type</label>
                 <select
                   required
                   value={formData.transactionType}
                   onChange={(e) => setFormData({ ...formData, transactionType: e.target.value as 'receiving' | 'issuance' })}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                  className="select-dark"
                 >
                   <option value="receiving">Receiving</option>
                   <option value="issuance">Issuance</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Material</label>
+                <label className="label-dark">Material</label>
                 <select
                   required
                   value={formData.materialCode}
                   onChange={(e) => handleMaterialChange(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                  className="select-dark"
                 >
                   <option value="">Select Material</option>
                   {materials.map((material) => (
@@ -253,7 +281,7 @@ export default function TransactionsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Quantity</label>
+                  <label className="label-dark">Quantity</label>
                   <input
                     type="number"
                     required
@@ -261,55 +289,67 @@ export default function TransactionsPage() {
                     step="0.01"
                     value={formData.quantity}
                     onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) })}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                    className="input-dark"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Unit</label>
+                  <label className="label-dark">Unit</label>
                   <input
                     type="text"
                     required
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                    className="input-dark"
+                    placeholder="e.g., PCS, KG"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">User</label>
+                <label className="label-dark">User</label>
                 <input
                   type="text"
                   required
                   value={formData.user}
                   onChange={(e) => setFormData({ ...formData, user: e.target.value })}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                  className="input-dark"
+                  placeholder="Enter user name"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Reference</label>
+                <label className="label-dark">Reference</label>
                 <input
                   type="text"
                   required
                   value={formData.reference}
                   onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                  className="input-dark"
+                  placeholder="Enter reference number"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Notes (Optional)</label>
+                <label className="label-dark">Notes (Optional)</label>
                 <textarea
                   value={formData.notes || ''}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-slate-50 focus:bg-white"
+                  className="textarea-dark"
                   rows={3}
+                  placeholder="Additional notes..."
                 />
               </div>
               <div className="flex space-x-3 pt-4">
                 <button
                   type="submit"
-                  className="flex-1 premium-button"
+                  disabled={isSaving}
+                  className="flex-1 premium-button flex items-center justify-center gap-2"
                 >
-                  Save Transaction
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="animate-spin" size={18} />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Transaction'
+                  )}
                 </button>
                 <button
                   type="button"
@@ -329,4 +369,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-

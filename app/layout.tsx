@@ -1,13 +1,14 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import Sidebar from '@/components/Sidebar'
+import { AuthProvider } from '@/contexts/AuthContext'
+import AuthWrapper from '@/components/AuthWrapper'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Material Management System',
-  description: 'Premium inventory and material management system',
+  title: 'Autocarpets Incorporation - Inventory Management System',
+  description: 'Autocarpets Incorporation inventory and material management system',
 }
 
 export default function RootLayout({
@@ -17,13 +18,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <div className="flex h-screen overflow-hidden bg-black">
-          <Sidebar />
-          <main className="flex-1 ml-72 overflow-y-auto bg-black">
+      <body className={`${inter.className} bg-slate-950 text-slate-100 antialiased`}>
+        <AuthProvider>
+          <AuthWrapper>
             {children}
-          </main>
-        </div>
+          </AuthWrapper>
+        </AuthProvider>
       </body>
     </html>
   )

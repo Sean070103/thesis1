@@ -1,22 +1,54 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Package, FileText, AlertTriangle, Bell, Calendar, Filter, Download, RefreshCw } from 'lucide-react';
-import { getMaterials, getTransactions, getDefects, getAlerts } from '@/lib/storage';
+import { BarChart3, TrendingUp, Package, FileText, AlertTriangle, Bell, Calendar, Filter, Download, RefreshCw, Loader2 } from 'lucide-react';
+import { 
+  getMaterialsFromSupabase, 
+  getTransactionsFromSupabase, 
+  getDefectsFromSupabase, 
+  getAlertsFromSupabase 
+} from '@/lib/supabase-storage';
 import { exportToCSV } from '@/lib/export';
+import { Material, MaterialTransaction, Defect, Alert } from '@/types';
 
 export default function AnalyticsPage() {
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | '1y' | 'all'>('30d');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const materials = getMaterials();
-  const transactions = getTransactions();
-  const defects = getDefects();
-  const alerts = getAlerts();
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [transactions, setTransactions] = useState<MaterialTransaction[]>([]);
+  const [defects, setDefects] = useState<Defect[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    const [materialsData, transactionsData, defectsData, alertsData] = await Promise.all([
+      getMaterialsFromSupabase(),
+      getTransactionsFromSupabase(),
+      getDefectsFromSupabase(),
+      getAlertsFromSupabase()
+    ]);
+    setMaterials(materialsData);
+    setTransactions(transactionsData);
+    setDefects(defectsData);
+    setAlerts(alertsData);
+    setIsLoading(false);
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadData();
+    setIsRefreshing(false);
+  };
 
   // Get unique categories
-  const categories = ['all', ...Array.from(new Set(materials.map(m => m.category)))];
+  const categories = ['all', ...Array.from(new Set(materials.map(m => m.category).filter(Boolean)))];
 
   // Filter materials by category
   const filteredMaterials = categoryFilter === 'all' 
@@ -58,7 +90,7 @@ export default function AnalyticsPage() {
     const trends: { date: string; receiving: number; issuance: number }[] = [];
     const now = new Date();
     
-    for (let i = days - 1; i >= 0; i--) {
+    for (let i = Math.min(days, 30) - 1; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
@@ -84,7 +116,7 @@ export default function AnalyticsPage() {
   const categoryDistribution = categories.slice(1).map(cat => ({
     category: cat,
     count: materials.filter(m => m.category === cat).length,
-    percentage: (materials.filter(m => m.category === cat).length / materials.length) * 100,
+    percentage: materials.length > 0 ? (materials.filter(m => m.category === cat).length / materials.length) * 100 : 0,
   })).sort((a, b) => b.count - a.count);
 
   // Defect severity distribution
@@ -100,12 +132,6 @@ export default function AnalyticsPage() {
     critical: alerts.filter(a => a.severity === 'critical').length,
     error: alerts.filter(a => a.severity === 'error').length,
     warning: alerts.filter(a => a.severity === 'warning').length,
-  };
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    // Force reload by triggering a re-render
-    window.location.reload();
   };
 
   const exportTransactionsCSV = () => {
@@ -132,42 +158,38 @@ export default function AnalyticsPage() {
     ]);
   };
 
-  const exportCategoriesCSV = () => {
-    const rows = categoryDistribution.map((item) => ({
-      category: item.category,
-      count: item.count,
-      percentage: item.percentage.toFixed(1),
-    }));
-
-    exportToCSV('category-distribution.csv', rows, [
-      { key: 'category', label: 'Category' },
-      { key: 'count', label: 'Count' },
-      { key: 'percentage', label: 'Percentage' },
-    ]);
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="animate-spin text-amber-500 mx-auto mb-4" size={48} />
+          <p className="text-slate-400">Loading analytics...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black">
       {/* Header */}
-      <div className="bg-gradient-to-r from-black via-slate-950 to-black border-b border-slate-800/50 px-8 py-7 backdrop-blur-sm">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-white">Analytics</h1>
-            </div>
-            <p className="text-slate-400 text-sm">Deep insights and performance analytics for your material management</p>
+      <div className="bg-slate-900 border-b border-slate-800 px-8 py-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-xl font-semibold text-white">Analytics</h1>
+            <p className="text-sm text-slate-400 mt-1">Deep insights and performance analytics</p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handleRefresh}
-              className="px-4 py-2.5 text-sm font-medium text-slate-300 bg-slate-800/50 border border-slate-700/50 rounded-lg hover:bg-slate-800 hover:border-slate-700 transition-all duration-200 flex items-center gap-2"
+              disabled={isRefreshing}
+              className="px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2 disabled:opacity-50"
             >
               <RefreshCw className={isRefreshing ? 'animate-spin' : ''} size={18} />
               Refresh
             </button>
             <button
               onClick={exportTransactionsCSV}
-              className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all duration-200 shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 flex items-center gap-2"
+              className="px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
             >
               <Download size={16} />
               Export Transactions
@@ -178,32 +200,32 @@ export default function AnalyticsPage() {
 
       <div className="p-8 space-y-6">
         {/* Filters */}
-        <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 rounded-xl border border-slate-800/50 p-6 shadow-lg">
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
-              <Calendar className="text-amber-400" size={18} />
-              <span className="text-sm font-semibold text-slate-300">Date Range:</span>
+              <Calendar className="text-slate-400" size={18} />
+              <span className="text-sm font-medium text-slate-300">Date Range:</span>
             </div>
             {(['7d', '30d', '90d', '1y', 'all'] as const).map((range) => (
               <button
                 key={range}
                 onClick={() => setDateRange(range)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                   dateRange === range
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/20'
-                    : 'bg-slate-800/50 text-slate-300 hover:bg-slate-800 border border-slate-700/50'
+                    ? 'bg-slate-700 text-white border border-slate-600'
+                    : 'bg-slate-900 text-slate-300 hover:bg-slate-700 border border-slate-700'
                 }`}
               >
                 {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : range === '1y' ? '1 Year' : 'All Time'}
               </button>
             ))}
             <div className="ml-auto flex items-center gap-2">
-              <Filter className="text-amber-400" size={18} />
-              <span className="text-sm font-semibold text-slate-300">Category:</span>
+              <Filter className="text-slate-400" size={18} />
+              <span className="text-sm font-medium text-slate-300">Category:</span>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="px-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-white text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-slate-600 focus:border-slate-600"
               >
                 {categories.map(cat => (
                   <option key={cat} value={cat}>
@@ -217,40 +239,40 @@ export default function AnalyticsPage() {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 rounded-xl border border-slate-800/50 p-5 shadow-lg">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold text-slate-400 uppercase">Total Materials</p>
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Total Materials</p>
               <Package className="text-blue-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-1">{stats.totalMaterials}</p>
+            <p className="text-3xl font-bold text-white mb-2">{stats.totalMaterials}</p>
             <p className="text-xs text-slate-500">In selected period</p>
           </div>
-          <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 rounded-xl border border-slate-800/50 p-5 shadow-lg">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold text-slate-400 uppercase">Transactions</p>
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Transactions</p>
               <FileText className="text-emerald-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-1">{stats.totalTransactions}</p>
+            <p className="text-3xl font-bold text-white mb-2">{stats.totalTransactions}</p>
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-emerald-400">↑ {stats.receivingCount} Receiving</span>
+              <span className="text-emerald-400 font-medium">↑ {stats.receivingCount} Receiving</span>
               <span className="text-slate-500">•</span>
-              <span className="text-blue-400">↓ {stats.issuanceCount} Issuance</span>
+              <span className="text-blue-400 font-medium">↓ {stats.issuanceCount} Issuance</span>
             </div>
           </div>
-          <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 rounded-xl border border-slate-800/50 p-5 shadow-lg">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold text-slate-400 uppercase">Defects</p>
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Defects</p>
               <AlertTriangle className="text-amber-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-1">{stats.totalDefects}</p>
+            <p className="text-3xl font-bold text-white mb-2">{stats.totalDefects}</p>
             <p className="text-xs text-slate-500">Reported issues</p>
           </div>
-          <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 rounded-xl border border-slate-800/50 p-5 shadow-lg">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold text-slate-400 uppercase">Active Alerts</p>
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Active Alerts</p>
               <Bell className="text-rose-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-1">{stats.activeAlerts}</p>
+            <p className="text-3xl font-bold text-white mb-2">{stats.activeAlerts}</p>
             <p className="text-xs text-slate-500">Requiring attention</p>
           </div>
         </div>
@@ -258,33 +280,33 @@ export default function AnalyticsPage() {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Transaction Trends */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 rounded-xl border border-slate-800/50 p-6 shadow-lg">
-            <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-              <TrendingUp className="text-amber-400" size={20} />
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+              <TrendingUp className="text-slate-400" size={20} />
               Transaction Trends
             </h3>
-            <div className="h-64 flex items-end justify-between gap-1">
-              {transactionTrends.map((trend, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
+            <div className="h-64 flex items-end justify-between gap-1 overflow-x-auto">
+              {transactionTrends.slice(-14).map((trend, i) => (
+                <div key={i} className="flex-1 min-w-[20px] flex flex-col items-center gap-1 group">
                   <div className="w-full flex flex-col items-center gap-1" style={{ height: '200px' }}>
                     <div
-                      className="w-full bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-t hover:from-emerald-600 hover:to-emerald-500 transition-all cursor-pointer shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/40"
-                      style={{ height: `${(trend.receiving / maxTransactions) * 100}%`, minHeight: '4px' }}
+                      className="w-full bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-t transition-all cursor-pointer"
+                      style={{ height: `${(trend.receiving / Math.max(maxTransactions, 1)) * 100}%`, minHeight: '4px' }}
                       title={`Receiving: ${trend.receiving}`}
                     />
                     <div
-                      className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t hover:from-blue-600 hover:to-blue-500 transition-all cursor-pointer shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/40"
-                      style={{ height: `${(trend.issuance / maxTransactions) * 100}%`, minHeight: '4px' }}
+                      className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t transition-all cursor-pointer"
+                      style={{ height: `${(trend.issuance / Math.max(maxTransactions, 1)) * 100}%`, minHeight: '4px' }}
                       title={`Issuance: ${trend.issuance}`}
                     />
                   </div>
-                  <span className="text-xs text-slate-400 mt-2 font-medium transform -rotate-45 origin-top-left whitespace-nowrap">
+                  <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
                     {trend.date.split(' ')[0]}
                   </span>
                 </div>
               ))}
             </div>
-            <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-slate-800">
+            <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-slate-700">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-emerald-500 rounded"></div>
                 <span className="text-xs text-slate-400">Receiving</span>
@@ -297,20 +319,11 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Category Distribution */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 rounded-xl border border-slate-800/50 p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <BarChart3 className="text-amber-400" size={20} />
-                Material Distribution by Category
-              </h3>
-              <button
-                onClick={exportCategoriesCSV}
-                className="px-3 py-2 text-xs font-semibold text-white bg-slate-800/50 border border-slate-700/50 rounded-lg hover:bg-slate-800 hover:border-slate-700 transition-all flex items-center gap-1.5"
-              >
-                <Download size={14} />
-                Export CSV
-              </button>
-            </div>
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+              <BarChart3 className="text-slate-400" size={20} />
+              Material Distribution by Category
+            </h3>
             <div className="space-y-4">
               {categoryDistribution.length === 0 ? (
                 <div className="text-center py-8">
@@ -318,15 +331,15 @@ export default function AnalyticsPage() {
                   <p className="text-sm text-slate-400">No categories found</p>
                 </div>
               ) : (
-                categoryDistribution.map((item, i) => (
+                categoryDistribution.slice(0, 5).map((item, i) => (
                   <div key={i} className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-white">{item.category}</span>
+                      <span className="text-sm font-semibold text-white">{item.category || 'Uncategorized'}</span>
                       <span className="text-sm font-bold text-slate-300">{item.count} ({item.percentage.toFixed(1)}%)</span>
                     </div>
-                    <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-3 bg-slate-900 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all duration-500"
+                        className="h-full bg-amber-500 rounded-full transition-all duration-500"
                         style={{ width: `${item.percentage}%` }}
                       />
                     </div>
@@ -340,33 +353,33 @@ export default function AnalyticsPage() {
         {/* Defect & Alert Analysis */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Defect Severity Distribution */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 rounded-xl border border-slate-800/50 p-6 shadow-lg">
-            <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-              <AlertTriangle className="text-amber-400" size={20} />
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+              <AlertTriangle className="text-slate-400" size={20} />
               Defect Severity Distribution
             </h3>
             <div className="space-y-4">
               {[
-                { label: 'Critical', value: defectSeverity.critical, color: 'from-rose-500 to-rose-600', bg: 'bg-rose-500/10', border: 'border-rose-500/20' },
-                { label: 'High', value: defectSeverity.high, color: 'from-orange-500 to-orange-600', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
-                { label: 'Medium', value: defectSeverity.medium, color: 'from-amber-500 to-amber-600', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
-                { label: 'Low', value: defectSeverity.low, color: 'from-blue-500 to-blue-600', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+                { label: 'Critical', value: defectSeverity.critical, color: 'bg-rose-600' },
+                { label: 'High', value: defectSeverity.high, color: 'bg-orange-600' },
+                { label: 'Medium', value: defectSeverity.medium, color: 'bg-amber-600' },
+                { label: 'Low', value: defectSeverity.low, color: 'bg-blue-600' },
               ].map((item, i) => {
                 const total = defectSeverity.critical + defectSeverity.high + defectSeverity.medium + defectSeverity.low;
                 const percentage = total > 0 ? (item.value / total) * 100 : 0;
                 return (
-                  <div key={i} className={`p-4 rounded-lg border ${item.bg} ${item.border}`}>
+                  <div key={i} className="p-4 bg-slate-900 rounded-lg border border-slate-700">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-white">{item.label}</span>
+                      <span className="text-sm font-medium text-white">{item.label}</span>
                       <span className="text-sm font-bold text-white">{item.value}</span>
                     </div>
                     <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                       <div
-                        className={`h-full bg-gradient-to-r ${item.color} rounded-full transition-all duration-500`}
+                        className={`h-full ${item.color} rounded-full transition-all duration-500`}
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">{percentage.toFixed(1)}% of total defects</p>
+                    <p className="text-xs text-slate-500 mt-1">{percentage.toFixed(1)}% of total defects</p>
                   </div>
                 );
               })}
@@ -374,32 +387,32 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Alert Severity Distribution */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 rounded-xl border border-slate-800/50 p-6 shadow-lg">
-            <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-              <Bell className="text-rose-400" size={20} />
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+              <Bell className="text-slate-400" size={20} />
               Alert Severity Distribution
             </h3>
             <div className="space-y-4">
               {[
-                { label: 'Critical', value: alertSeverity.critical, color: 'from-rose-500 to-rose-600', bg: 'bg-rose-500/10', border: 'border-rose-500/20' },
-                { label: 'Error', value: alertSeverity.error, color: 'from-orange-500 to-orange-600', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
-                { label: 'Warning', value: alertSeverity.warning, color: 'from-amber-500 to-amber-600', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+                { label: 'Critical', value: alertSeverity.critical, color: 'bg-rose-600' },
+                { label: 'Error', value: alertSeverity.error, color: 'bg-orange-600' },
+                { label: 'Warning', value: alertSeverity.warning, color: 'bg-amber-600' },
               ].map((item, i) => {
                 const total = alertSeverity.critical + alertSeverity.error + alertSeverity.warning;
                 const percentage = total > 0 ? (item.value / total) * 100 : 0;
                 return (
-                  <div key={i} className={`p-4 rounded-lg border ${item.bg} ${item.border}`}>
+                  <div key={i} className="p-4 bg-slate-900 rounded-lg border border-slate-700">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-white">{item.label}</span>
+                      <span className="text-sm font-medium text-white">{item.label}</span>
                       <span className="text-sm font-bold text-white">{item.value}</span>
                     </div>
                     <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                       <div
-                        className={`h-full bg-gradient-to-r ${item.color} rounded-full transition-all duration-500`}
+                        className={`h-full ${item.color} rounded-full transition-all duration-500`}
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">{percentage.toFixed(1)}% of total alerts</p>
+                    <p className="text-xs text-slate-500 mt-1">{percentage.toFixed(1)}% of total alerts</p>
                   </div>
                 );
               })}
@@ -408,13 +421,13 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Transaction Analysis */}
-        <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 rounded-xl border border-slate-800/50 p-6 shadow-lg">
-          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-            <BarChart3 className="text-amber-400" size={20} />
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+          <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+            <BarChart3 className="text-slate-400" size={20} />
             Transaction Analysis
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+            <div className="bg-slate-900 rounded-lg p-5 border border-slate-700">
               <p className="text-sm text-slate-400 mb-2">Receiving Transactions</p>
               <p className="text-3xl font-bold text-emerald-400 mb-1">{stats.receivingCount}</p>
               <p className="text-xs text-slate-500">
@@ -423,7 +436,7 @@ export default function AnalyticsPage() {
                   : '0% of total'}
               </p>
             </div>
-            <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+            <div className="bg-slate-900 rounded-lg p-5 border border-slate-700">
               <p className="text-sm text-slate-400 mb-2">Issuance Transactions</p>
               <p className="text-3xl font-bold text-blue-400 mb-1">{stats.issuanceCount}</p>
               <p className="text-xs text-slate-500">
@@ -432,7 +445,7 @@ export default function AnalyticsPage() {
                   : '0% of total'}
               </p>
             </div>
-            <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+            <div className="bg-slate-900 rounded-lg p-5 border border-slate-700">
               <p className="text-sm text-slate-400 mb-2">Transaction Ratio</p>
               <p className="text-3xl font-bold text-amber-400 mb-1">
                 {stats.issuanceCount > 0 
@@ -447,4 +460,3 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-

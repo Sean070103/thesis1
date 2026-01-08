@@ -39,16 +39,16 @@ A comprehensive Next.js application for managing inventory, material transaction
 - Node.js 18+ installed
 - npm or yarn package manager
 
-### Installation
+### Installation (using pnpm for faster installs)
 
 1. Install dependencies:
 ```bash
-npm install
+pnpm install
 ```
 
 2. Run the development server:
 ```bash
-npm run dev
+pnpm dev
 ```
 
 3. Open [http://localhost:3000](http://localhost:3000) in your browser
@@ -56,8 +56,8 @@ npm run dev
 ### Building for Production
 
 ```bash
-npm run build
-npm start
+pnpm build
+pnpm start
 ```
 
 ## Data Storage

@@ -1,8 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Database, Download, Upload, Trash2, Bell, Zap, Globe, Save, AlertCircle, RefreshCw } from 'lucide-react';
-import { getMaterials, getTransactions, getDefects, getAlerts, importData } from '@/lib/storage';
+import { Settings as SettingsIcon, Database, Download, Upload, Trash2, Bell, Zap, Globe, Save, AlertCircle, RefreshCw, Users, UserPlus, Loader2 } from 'lucide-react';
+import { 
+  getMaterialsFromSupabase, 
+  getTransactionsFromSupabase, 
+  getDefectsFromSupabase, 
+  getAlertsFromSupabase, 
+  getUsersFromSupabase, 
+  deleteUserFromSupabase 
+} from '@/lib/supabase-storage';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import Link from 'next/link';
 
 const defaultNotificationSettings = {
   emailAlerts: false,
@@ -27,13 +37,16 @@ const defaultSystemSettings = {
 };
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'data' | 'system' | 'notifications' | 'sap'>('data');
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'data' | 'system' | 'notifications' | 'sap' | 'users'>('data');
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState(defaultNotificationSettings);
   const [sapSettings, setSapSettings] = useState(defaultSapSettings);
   const [systemSettings, setSystemSettings] = useState(defaultSystemSettings);
+  const [stats, setStats] = useState({ materials: 0, transactions: 0, defects: 0, alerts: 0 });
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   // Load saved settings on mount
   useEffect(() => {
@@ -54,16 +67,42 @@ export default function SettingsPage() {
     } catch (error) {
       console.error('Failed to load settings from localStorage', error);
     }
+    
+    loadStats();
   }, []);
 
-  const handleExportData = () => {
+  const loadStats = async () => {
+    setIsLoadingStats(true);
+    const [materials, transactions, defects, alerts] = await Promise.all([
+      getMaterialsFromSupabase(),
+      getTransactionsFromSupabase(),
+      getDefectsFromSupabase(),
+      getAlertsFromSupabase()
+    ]);
+    setStats({
+      materials: materials.length,
+      transactions: transactions.length,
+      defects: defects.length,
+      alerts: alerts.length,
+    });
+    setIsLoadingStats(false);
+  };
+
+  const handleExportData = async () => {
     setIsExporting(true);
     try {
+      const [materials, transactions, defects, alerts] = await Promise.all([
+        getMaterialsFromSupabase(),
+        getTransactionsFromSupabase(),
+        getDefectsFromSupabase(),
+        getAlertsFromSupabase()
+      ]);
+
       const data = {
-        materials: getMaterials(),
-        transactions: getTransactions(),
-        defects: getDefects(),
-        alerts: getAlerts(),
+        materials,
+        transactions,
+        defects,
+        alerts,
         exportDate: new Date().toISOString(),
         version: '1.0.0',
       };
@@ -92,7 +131,7 @@ export default function SettingsPage() {
 
     setIsImporting(true);
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = JSON.parse(e.target?.result as string);
         
@@ -101,21 +140,11 @@ export default function SettingsPage() {
         }
         
         if (confirm('This will replace all existing data. Are you sure?')) {
-          importData({
-            materials: data.materials,
-            transactions: data.transactions,
-            defects: data.defects,
-            alerts: data.alerts,
-          });
-          
-          setTimeout(() => {
-            setIsImporting(false);
-            alert('Data imported successfully! The page will reload.');
-            window.location.reload();
-          }, 1000);
-        } else {
-          setIsImporting(false);
+          // Note: For Supabase, you would need to implement batch insert/upsert operations
+          // For now, we show a message about the limitation
+          alert('Data import to Supabase requires backend implementation. Please contact your administrator.');
         }
+        setIsImporting(false);
       } catch (error) {
         console.error('Import failed:', error);
         setIsImporting(false);
@@ -128,18 +157,9 @@ export default function SettingsPage() {
   const handleClearAllData = () => {
     if (confirm('Are you absolutely sure? This will delete ALL data and cannot be undone!')) {
       setIsClearing(true);
-      try {
-        localStorage.clear();
-        setTimeout(() => {
-          setIsClearing(false);
-          alert('All data has been cleared. The page will reload.');
-          window.location.reload();
-        }, 1000);
-      } catch (error) {
-        console.error('Clear failed:', error);
-        setIsClearing(false);
-        alert('Failed to clear data. Please try again.');
-      }
+      // Note: For Supabase, you would need to implement proper data deletion
+      alert('Data clearing from Supabase requires backend implementation. Please contact your administrator.');
+      setIsClearing(false);
     }
   };
 
@@ -156,29 +176,21 @@ export default function SettingsPage() {
     { id: 'system', label: 'System', icon: SettingsIcon },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'sap', label: 'SAP Integration', icon: Zap },
+    ...(user?.role === 'admin' ? [{ id: 'users', label: 'User Management', icon: Users }] : []),
   ];
-
-  const stats = {
-    materials: getMaterials().length,
-    transactions: getTransactions().length,
-    defects: getDefects().length,
-    alerts: getAlerts().length,
-  };
 
   return (
     <div className="min-h-screen bg-black">
       {/* Header */}
-      <div className="bg-gradient-to-r from-black via-slate-950 to-black border-b border-slate-800/50 px-8 py-7 backdrop-blur-sm">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-white">Settings</h1>
-            </div>
-            <p className="text-slate-400 text-sm">Manage your system preferences and configurations</p>
+      <div className="bg-slate-900 border-b border-slate-800 px-8 py-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-xl font-semibold text-white">Settings</h1>
+            <p className="text-sm text-slate-400 mt-1">Manage your system preferences and configurations</p>
           </div>
           <button
             onClick={handleSaveSettings}
-            className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all duration-200 shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 flex items-center gap-2"
+            className="px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
           >
             <Save size={16} />
             Save All Settings
@@ -190,7 +202,7 @@ export default function SettingsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar Tabs */}
           <div className="lg:col-span-1">
-            <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 rounded-xl border border-slate-800/50 p-4 shadow-lg">
+            <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
               <nav className="space-y-1">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
@@ -199,18 +211,31 @@ export default function SettingsPage() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id as any)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                         isActive
-                          ? 'bg-slate-800/80 text-white shadow-lg border border-slate-700/50'
-                          : 'text-slate-300 hover:bg-slate-800/50 hover:text-white'
+                          ? 'bg-slate-700 text-white border border-slate-600'
+                          : 'text-slate-300 hover:bg-slate-700 hover:text-white border border-transparent'
                       }`}
                     >
                       <Icon size={18} />
-                      <span className="text-sm font-semibold">{tab.label}</span>
+                      <span className="text-sm font-medium">{tab.label}</span>
                     </button>
                   );
                 })}
               </nav>
+              
+              {/* Supabase Status */}
+              <div className="mt-4 pt-4 border-t border-slate-700">
+                <div className="px-4 py-2">
+                  <p className="text-xs text-slate-500 mb-2">Database Status</p>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${isSupabaseConfigured() ? 'bg-emerald-500' : 'bg-slate-500'}`}></div>
+                    <span className="text-xs text-slate-400">
+                      {isSupabaseConfigured() ? 'Supabase Connected' : 'Using LocalStorage'}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -219,45 +244,53 @@ export default function SettingsPage() {
             {/* Data Management Tab */}
             {activeTab === 'data' && (
               <div className="space-y-6">
-                <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 rounded-xl border border-slate-800/50 p-6 shadow-lg">
-                  <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                    <Database className="text-amber-400" size={24} />
+                <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+                  <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                    <Database className="text-slate-400" size={24} />
                     Data Management
                   </h2>
 
                   {/* Data Statistics */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-700/30">
-                      <p className="text-xs text-slate-400 mb-1">Materials</p>
-                      <p className="text-2xl font-bold text-white">{stats.materials}</p>
-                    </div>
-                    <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-700/30">
-                      <p className="text-xs text-slate-400 mb-1">Transactions</p>
-                      <p className="text-2xl font-bold text-white">{stats.transactions}</p>
-                    </div>
-                    <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-700/30">
-                      <p className="text-xs text-slate-400 mb-1">Defects</p>
-                      <p className="text-2xl font-bold text-white">{stats.defects}</p>
-                    </div>
-                    <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-700/30">
-                      <p className="text-xs text-slate-400 mb-1">Alerts</p>
-                      <p className="text-2xl font-bold text-white">{stats.alerts}</p>
-                    </div>
+                    {isLoadingStats ? (
+                      <div className="col-span-4 flex justify-center py-8">
+                        <Loader2 className="animate-spin text-amber-500" size={32} />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
+                          <p className="text-xs font-medium text-slate-400 mb-2 uppercase tracking-wide">Materials</p>
+                          <p className="text-3xl font-bold text-white">{stats.materials}</p>
+                        </div>
+                        <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
+                          <p className="text-xs font-medium text-slate-400 mb-2 uppercase tracking-wide">Transactions</p>
+                          <p className="text-3xl font-bold text-white">{stats.transactions}</p>
+                        </div>
+                        <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
+                          <p className="text-xs font-medium text-slate-400 mb-2 uppercase tracking-wide">Defects</p>
+                          <p className="text-3xl font-bold text-white">{stats.defects}</p>
+                        </div>
+                        <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
+                          <p className="text-xs font-medium text-slate-400 mb-2 uppercase tracking-wide">Alerts</p>
+                          <p className="text-3xl font-bold text-white">{stats.alerts}</p>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Export Data */}
-                  <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30 mb-4">
+                  <div className="bg-slate-900 rounded-lg p-5 border border-slate-700 mb-4">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="text-lg font-semibold text-white mb-1">Export Data</h3>
+                        <h3 className="text-lg font-medium text-white mb-1">Export Data</h3>
                         <p className="text-sm text-slate-400">Download all your data as a JSON backup file</p>
                       </div>
-                      <Download className="text-amber-400" size={24} />
+                      <Download className="text-slate-400" size={24} />
                     </div>
                     <button
                       onClick={handleExportData}
                       disabled={isExporting}
-                      className="w-full px-4 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                      className="w-full px-4 py-3 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 border border-slate-700"
                     >
                       {isExporting ? (
                         <>
@@ -274,15 +307,15 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Import Data */}
-                  <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30 mb-4">
+                  <div className="bg-slate-900 rounded-lg p-5 border border-slate-700 mb-4">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="text-lg font-semibold text-white mb-1">Import Data</h3>
+                        <h3 className="text-lg font-medium text-white mb-1">Import Data</h3>
                         <p className="text-sm text-slate-400">Restore data from a previously exported backup file</p>
                       </div>
-                      <Upload className="text-emerald-400" size={24} />
+                      <Upload className="text-slate-400" size={24} />
                     </div>
-                    <label className="w-full px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-all font-semibold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
+                    <label className="w-full px-4 py-3 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 border border-slate-700">
                       <input
                         type="file"
                         accept=".json"
@@ -305,10 +338,10 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Clear All Data */}
-                  <div className="bg-slate-800/30 rounded-lg p-5 border border-rose-700/30">
+                  <div className="bg-slate-900 rounded-lg p-5 border border-rose-700">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
+                        <h3 className="text-lg font-medium text-white mb-1 flex items-center gap-2">
                           <AlertCircle className="text-rose-400" size={20} />
                           Clear All Data
                         </h3>
@@ -319,7 +352,7 @@ export default function SettingsPage() {
                     <button
                       onClick={handleClearAllData}
                       disabled={isClearing}
-                      className="w-full px-4 py-3 bg-gradient-to-r from-rose-500 to-rose-600 text-white rounded-lg hover:from-rose-600 hover:to-rose-700 transition-all font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                      className="w-full px-4 py-3 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 border border-rose-700"
                     >
                       {isClearing ? (
                         <>
@@ -341,15 +374,15 @@ export default function SettingsPage() {
             {/* System Settings Tab */}
             {activeTab === 'system' && (
               <div className="space-y-6">
-                <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 rounded-xl border border-slate-800/50 p-6 shadow-lg">
-                  <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                    <SettingsIcon className="text-amber-400" size={24} />
+                <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+                  <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                    <SettingsIcon className="text-slate-400" size={24} />
                     System Preferences
                   </h2>
 
                   <div className="space-y-6">
                     {/* Auto Refresh */}
-                    <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+                    <div className="bg-slate-900 rounded-lg p-5 border border-slate-700">
                       <div className="flex items-center justify-between mb-4">
                         <div>
                           <h3 className="text-lg font-semibold text-white mb-1">Auto Refresh</h3>
@@ -383,9 +416,9 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Theme */}
-                    <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+                    <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
                       <div className="mb-4">
-                        <h3 className="text-lg font-semibold text-white mb-1">Theme</h3>
+                        <h3 className="text-lg font-medium text-white mb-1">Theme</h3>
                         <p className="text-sm text-slate-400">Choose your preferred color theme</p>
                       </div>
                       <select
@@ -402,10 +435,10 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Language */}
-                    <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+                    <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
                       <div className="mb-4">
-                        <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
-                          <Globe className="text-amber-400" size={18} />
+                        <h3 className="text-lg font-medium text-white mb-1 flex items-center gap-2">
+                          <Globe className="text-slate-400" size={18} />
                           Language
                         </h3>
                         <p className="text-sm text-slate-400">Select your preferred language</p>
@@ -430,18 +463,18 @@ export default function SettingsPage() {
             {/* Notifications Tab */}
             {activeTab === 'notifications' && (
               <div className="space-y-6">
-                <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 rounded-xl border border-slate-800/50 p-6 shadow-lg">
-                  <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                    <Bell className="text-amber-400" size={24} />
+                <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+                  <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                    <Bell className="text-slate-400" size={24} />
                     Notification Preferences
                   </h2>
 
                   <div className="space-y-4">
                     {/* Email Alerts */}
-                    <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+                    <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-lg font-semibold text-white mb-1">Email Alerts</h3>
+                          <h3 className="text-lg font-medium text-white mb-1">Email Alerts</h3>
                           <p className="text-sm text-slate-400">Receive alerts via email</p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
@@ -459,10 +492,10 @@ export default function SettingsPage() {
                     </div>
 
                     {/* SMS Alerts */}
-                    <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+                    <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-lg font-semibold text-white mb-1">SMS Alerts</h3>
+                          <h3 className="text-lg font-medium text-white mb-1">SMS Alerts</h3>
                           <p className="text-sm text-slate-400">Receive alerts via SMS</p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
@@ -480,10 +513,10 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Push Notifications */}
-                    <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+                    <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-lg font-semibold text-white mb-1">Push Notifications</h3>
+                          <h3 className="text-lg font-medium text-white mb-1">Push Notifications</h3>
                           <p className="text-sm text-slate-400">Receive browser push notifications</p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
@@ -501,9 +534,9 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Alert Frequency */}
-                    <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+                    <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
                       <div className="mb-4">
-                        <h3 className="text-lg font-semibold text-white mb-1">Alert Frequency</h3>
+                        <h3 className="text-lg font-medium text-white mb-1">Alert Frequency</h3>
                         <p className="text-sm text-slate-400">How often to receive notifications</p>
                       </div>
                       <select
@@ -524,18 +557,18 @@ export default function SettingsPage() {
             {/* SAP Integration Tab */}
             {activeTab === 'sap' && (
               <div className="space-y-6">
-                <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 rounded-xl border border-slate-800/50 p-6 shadow-lg">
-                  <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                    <Zap className="text-amber-400" size={24} />
+                <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+                  <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                    <Zap className="text-slate-400" size={24} />
                     SAP Integration
                   </h2>
 
                   <div className="space-y-6">
                     {/* Enable SAP */}
-                    <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+                    <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
                       <div className="flex items-center justify-between mb-4">
                         <div>
-                          <h3 className="text-lg font-semibold text-white mb-1">Enable SAP Integration</h3>
+                          <h3 className="text-lg font-medium text-white mb-1">Enable SAP Integration</h3>
                           <p className="text-sm text-slate-400">Connect to SAP ERP system for real-time synchronization</p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
@@ -553,8 +586,8 @@ export default function SettingsPage() {
                     {sapSettings.enabled && (
                       <>
                         {/* Server URL */}
-                        <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
-                          <label className="block text-sm font-semibold text-white mb-2">SAP Server URL</label>
+                        <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
+                          <label className="block text-sm font-medium text-white mb-2">SAP Server URL</label>
                           <input
                             type="text"
                             value={sapSettings.serverUrl}
@@ -565,8 +598,8 @@ export default function SettingsPage() {
                         </div>
 
                         {/* Username */}
-                        <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
-                          <label className="block text-sm font-semibold text-white mb-2">Username</label>
+                        <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
+                          <label className="block text-sm font-medium text-white mb-2">Username</label>
                           <input
                             type="text"
                             value={sapSettings.username}
@@ -577,8 +610,8 @@ export default function SettingsPage() {
                         </div>
 
                         {/* Password */}
-                        <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
-                          <label className="block text-sm font-semibold text-white mb-2">Password</label>
+                        <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
+                          <label className="block text-sm font-medium text-white mb-2">Password</label>
                           <input
                             type="password"
                             value={sapSettings.password}
@@ -589,8 +622,8 @@ export default function SettingsPage() {
                         </div>
 
                         {/* Sync Interval */}
-                        <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
-                          <label className="block text-sm font-semibold text-white mb-2">Sync Interval (seconds)</label>
+                        <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
+                          <label className="block text-sm font-medium text-white mb-2">Sync Interval (seconds)</label>
                           <select
                             value={sapSettings.syncInterval}
                             onChange={(e) => setSapSettings({ ...sapSettings, syncInterval: e.target.value })}
@@ -604,10 +637,10 @@ export default function SettingsPage() {
                         </div>
 
                         {/* Connection Status */}
-                        <div className="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+                        <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
                           <div className="flex items-center justify-between">
                             <div>
-                              <h3 className="text-lg font-semibold text-white mb-1">Connection Status</h3>
+                              <h3 className="text-lg font-medium text-white mb-1">Connection Status</h3>
                               <p className="text-sm text-slate-400">Current SAP connection status</p>
                             </div>
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-700/50 rounded-lg border border-slate-600/50">
@@ -623,6 +656,42 @@ export default function SettingsPage() {
                 </div>
               </div>
             )}
+
+            {/* User Management Tab - Admin Only */}
+            {activeTab === 'users' && user?.role === 'admin' && (
+              <div className="space-y-6">
+                <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+                  <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                    <Users className="text-slate-400" size={24} />
+                    User Management
+                  </h2>
+
+                  {/* Create New User */}
+                  <div className="bg-slate-900 rounded-lg p-5 border border-slate-700 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-medium text-white mb-1">Create New User</h3>
+                        <p className="text-sm text-slate-400">Add a new user account to the system</p>
+                      </div>
+                      <UserPlus className="text-slate-400" size={24} />
+                    </div>
+                    <Link
+                      href="/register"
+                      className="w-full px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition-colors font-medium flex items-center justify-center gap-2"
+                    >
+                      <UserPlus size={18} />
+                      Create User Account
+                    </Link>
+                  </div>
+
+                  {/* User List */}
+                  <div className="bg-slate-900 rounded-lg p-5 border border-slate-700">
+                    <h3 className="text-lg font-medium text-white mb-4">Registered Users</h3>
+                    <UserList />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -630,3 +699,100 @@ export default function SettingsPage() {
   );
 }
 
+// User List Component
+function UserList() {
+  const [users, setUsers] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    setIsLoading(true);
+    if (isSupabaseConfigured()) {
+      const data = await getUsersFromSupabase();
+      setUsers(data);
+    } else {
+      // Fallback to localStorage
+      const savedUsers = JSON.parse(localStorage.getItem('users') || '[]');
+      setUsers(savedUsers);
+    }
+    setIsLoading(false);
+  };
+
+  const handleDeleteUser = async (userId: string, userEmail: string) => {
+    if (confirm(`Are you sure you want to delete user "${userEmail}"?`)) {
+      if (isSupabaseConfigured()) {
+        const success = await deleteUserFromSupabase(userId);
+        if (success) {
+          await loadUsers();
+        } else {
+          alert('Failed to delete user. Please try again.');
+        }
+      } else {
+        // Fallback to localStorage
+        const updatedUsers = users.filter(u => u.id !== userId);
+        localStorage.setItem('users', JSON.stringify(updatedUsers));
+        setUsers(updatedUsers);
+      }
+    }
+  };
+
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'admin': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+      case 'manager': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'staff': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+      default: return 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="animate-spin text-amber-500" size={32} />
+      </div>
+    );
+  }
+
+  if (users.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <Users className="mx-auto text-slate-600 mb-3" size={32} />
+        <p className="text-sm text-slate-400">No users found</p>
+        <p className="text-xs text-slate-500 mt-1">Create a user account to get started</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {users.map((u) => (
+        <div key={u.id} className="flex items-center justify-between p-4 bg-slate-800 rounded-lg border border-slate-700">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center">
+              <span className="text-white font-medium">{u.name?.charAt(0)?.toUpperCase() || '?'}</span>
+            </div>
+            <div>
+              <p className="text-white font-medium">{u.name}</p>
+              <p className="text-slate-400 text-sm">{u.email}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={`text-xs font-medium px-2 py-1 rounded-full border ${getRoleBadgeColor(u.role)}`}>
+              {u.role?.toUpperCase()}
+            </span>
+            <button
+              onClick={() => handleDeleteUser(u.id, u.email)}
+              className="p-2 text-red-400 hover:bg-red-900/30 rounded-lg transition-colors"
+              title="Delete user"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

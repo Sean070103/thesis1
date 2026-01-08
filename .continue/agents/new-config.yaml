@@ -1,0 +1,19 @@
+name: Local Cursor-like Assistant
+version: 1.0.0
+schema: v1
+
+models:
+  # Primary coding model (Cursor-like)
+  - name: Qwen 2.5 Coder 7B (Ollama)
+    provider: ollama
+    model: qwen2.5-coder:7b
+    apiBase: http://localhost:11434
+
+  # Reasoning / planning / heavy thinking model
+  - name: DeepSeek R1 (Ollama)
+    provider: ollama
+    model: deepseek-r1
+    apiBase: http://localhost:11434
+
+# Optional: MCP servers (you can remove this if not needed yet)
+mcpServers: []

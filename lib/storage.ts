@@ -130,3 +130,131 @@ export function importData(data: {
   }
 }
 
+// Seed initial materials data
+export function seedMaterials(): void {
+  const initialMaterials: Material[] = [
+    {
+      id: generateId(),
+      materialCode: 'RM-01-06-0021',
+      description: 'BI PIPE 1MM x RP OD 25.4MM x 20" SCHED',
+      category: 'Raw Materials',
+      unit: 'PCS',
+      quantity: 0,
+      location: 'Warehouse',
+      lastUpdated: new Date().toISOString(),
+      sapQuantity: 0,
+    },
+    {
+      id: generateId(),
+      materialCode: 'RM-01-06-0059',
+      description: 'PE TRANS POLYBAG UV CUSHION (20 x 53 x 26 mic)',
+      category: 'Raw Materials',
+      unit: 'PCS',
+      quantity: 0,
+      location: 'Warehouse',
+      lastUpdated: new Date().toISOString(),
+      sapQuantity: 0,
+    },
+    {
+      id: generateId(),
+      materialCode: 'RM-01-06-0060',
+      description: 'PE TRANS SLT ONE SIDE UV BACK REST (10 x 100 x 26 mic)',
+      category: 'Raw Materials',
+      unit: 'PCS',
+      quantity: 0,
+      location: 'Warehouse',
+      lastUpdated: new Date().toISOString(),
+      sapQuantity: 0,
+    },
+    {
+      id: generateId(),
+      materialCode: 'RM-01-06-0079',
+      description: 'MS PLATE 2MM BACK REST ER BRKT – LITE ACE',
+      category: 'Raw Materials',
+      unit: 'PCS',
+      quantity: 0,
+      location: 'Warehouse',
+      lastUpdated: new Date().toISOString(),
+      sapQuantity: 0,
+    },
+    {
+      id: generateId(),
+      materialCode: 'RM-01-06-0080',
+      description: 'MS PLATE 2MM MID LEG BRKT (RH / LH) – LITE ACE',
+      category: 'Raw Materials',
+      unit: 'PCS',
+      quantity: 0,
+      location: 'Warehouse',
+      lastUpdated: new Date().toISOString(),
+      sapQuantity: 0,
+    },
+    {
+      id: generateId(),
+      materialCode: 'RM-01-06-0054',
+      description: 'FOAM 25MM BACK REST UV Lite Ace (158.75mm x 2235.22mm)',
+      category: 'Raw Materials',
+      unit: 'PCS',
+      quantity: 0,
+      location: 'Warehouse',
+      lastUpdated: new Date().toISOString(),
+      sapQuantity: 0,
+    },
+    {
+      id: generateId(),
+      materialCode: 'RM-01-06-0055',
+      description: 'FOAM 50MM SEAT CUSHION UV Lite Ace (349.25mm x 1117.6mm)',
+      category: 'Raw Materials',
+      unit: 'PCS',
+      quantity: 0,
+      location: 'Warehouse',
+      lastUpdated: new Date().toISOString(),
+      sapQuantity: 0,
+    },
+    {
+      id: generateId(),
+      materialCode: 'RM-01-06-0056',
+      description: 'FOAM 5MM SC UV Lite Ace (101.6mm x 2908.3mm)',
+      category: 'Raw Materials',
+      unit: 'PCS',
+      quantity: 0,
+      location: 'Warehouse',
+      lastUpdated: new Date().toISOString(),
+      sapQuantity: 0,
+    },
+    {
+      id: generateId(),
+      materialCode: 'RM-01-06-0057',
+      description: 'FOAM 5MM BR UV Lite Ace (88.9mm x 4699mm)',
+      category: 'Raw Materials',
+      unit: 'PCS',
+      quantity: 0,
+      location: 'Warehouse',
+      lastUpdated: new Date().toISOString(),
+      sapQuantity: 0,
+    },
+    {
+      id: generateId(),
+      materialCode: 'RM-01-06-0058',
+      description: 'TRICOT 8MM (SC / BR) UV Lite Ace (340mm x 1140mm)',
+      category: 'Raw Materials',
+      unit: 'PCS',
+      quantity: 0,
+      location: 'Warehouse',
+      lastUpdated: new Date().toISOString(),
+      sapQuantity: 0,
+    },
+  ];
+
+  // Add materials only if they don't already exist (by material code)
+  const existingMaterials = getMaterials();
+  const existingCodes = new Set(existingMaterials.map(m => m.materialCode));
+  
+  const newMaterials = initialMaterials.filter(m => !existingCodes.has(m.materialCode));
+  
+  if (newMaterials.length > 0) {
+    saveToStorage(STORAGE_KEYS.MATERIALS, [...existingMaterials, ...newMaterials]);
+  }
+  
+  return;
+}
+
