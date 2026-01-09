@@ -8,7 +8,6 @@ import {
   getDefectsFromSupabase, 
   getAlertsFromSupabase 
 } from '@/lib/supabase-storage';
-import { exportToCSV } from '@/lib/export';
 import { Material, MaterialTransaction, Defect, Alert } from '@/types';
 
 export default function AnalyticsPage() {
@@ -134,28 +133,137 @@ export default function AnalyticsPage() {
     warning: alerts.filter(a => a.severity === 'warning').length,
   };
 
-  const exportTransactionsCSV = () => {
-    const rows = filteredTransactions.map((t) => ({
-      date: new Date(t.date).toISOString(),
-      type: t.transactionType,
-      materialCode: t.materialCode,
-      materialDescription: t.materialDescription,
-      quantity: t.quantity,
-      unit: t.unit,
-      user: t.user,
-      reference: t.reference,
-    }));
+  const exportAnalyticsPDF = async () => {
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
 
-    exportToCSV('transactions.csv', rows, [
-      { key: 'date', label: 'Date' },
-      { key: 'type', label: 'Type' },
-      { key: 'materialCode', label: 'Material Code' },
-      { key: 'materialDescription', label: 'Description' },
-      { key: 'quantity', label: 'Quantity' },
-      { key: 'unit', label: 'Unit' },
-      { key: 'user', label: 'User' },
-      { key: 'reference', label: 'Reference' },
-    ]);
+      const doc = new jsPDF();
+      const periodLabel = dateRange === '7d' ? '7 Days' : dateRange === '30d' ? '30 Days' : dateRange === '90d' ? '90 Days' : dateRange === '1y' ? '1 Year' : 'All Time';
+      
+      // Title
+      doc.setFontSize(20);
+      doc.setTextColor(41, 37, 36);
+      doc.text('Analytics Report', 14, 22);
+      
+      // Subtitle
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
+      doc.text(`Period: ${periodLabel}`, 14, 36);
+      doc.text(`Category Filter: ${categoryFilter === 'all' ? 'All Categories' : categoryFilter}`, 14, 42);
+
+      // Key Metrics Section
+      doc.setFontSize(14);
+      doc.setTextColor(41, 37, 36);
+      doc.text('Key Metrics', 14, 56);
+
+      const metricsData = [
+        ['Total Materials', stats.totalMaterials.toString()],
+        ['Total Transactions', stats.totalTransactions.toString()],
+        ['Receiving Transactions', stats.receivingCount.toString()],
+        ['Issuance Transactions', stats.issuanceCount.toString()],
+        ['Total Defects', stats.totalDefects.toString()],
+        ['Active Alerts', stats.activeAlerts.toString()],
+        ['Total Inventory Units', stats.totalInventoryValue.toLocaleString()],
+      ];
+
+      autoTable(doc, {
+        startY: 61,
+        head: [['Metric', 'Value']],
+        body: metricsData,
+        theme: 'striped',
+        headStyles: { 
+          fillColor: [245, 158, 11],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold'
+        },
+        styles: { 
+          fontSize: 10,
+          cellPadding: 4
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        }
+      });
+
+      // Category Distribution Section
+      let finalY = (doc as any).lastAutoTable.finalY || 130;
+      
+      doc.setFontSize(14);
+      doc.setTextColor(41, 37, 36);
+      doc.text('Material Distribution by Category', 14, finalY + 15);
+
+      const categoryData = categoryDistribution.map(item => [
+        item.category || 'Uncategorized',
+        item.count.toString(),
+        `${item.percentage.toFixed(1)}%`
+      ]);
+
+      autoTable(doc, {
+        startY: finalY + 20,
+        head: [['Category', 'Count', 'Percentage']],
+        body: categoryData,
+        theme: 'striped',
+        headStyles: { 
+          fillColor: [245, 158, 11],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold'
+        },
+        styles: { 
+          fontSize: 10,
+          cellPadding: 4
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        }
+      });
+
+      // Defect Severity Section
+      finalY = (doc as any).lastAutoTable.finalY || 200;
+      
+      // Check if we need a new page
+      if (finalY > 230) {
+        doc.addPage();
+        finalY = 20;
+      }
+
+      doc.setFontSize(14);
+      doc.setTextColor(41, 37, 36);
+      doc.text('Defect Severity Distribution', 14, finalY + 15);
+
+      const totalDefects = defectSeverity.critical + defectSeverity.high + defectSeverity.medium + defectSeverity.low;
+      const defectData = [
+        ['Critical', defectSeverity.critical.toString(), totalDefects > 0 ? `${((defectSeverity.critical / totalDefects) * 100).toFixed(1)}%` : '0%'],
+        ['High', defectSeverity.high.toString(), totalDefects > 0 ? `${((defectSeverity.high / totalDefects) * 100).toFixed(1)}%` : '0%'],
+        ['Medium', defectSeverity.medium.toString(), totalDefects > 0 ? `${((defectSeverity.medium / totalDefects) * 100).toFixed(1)}%` : '0%'],
+        ['Low', defectSeverity.low.toString(), totalDefects > 0 ? `${((defectSeverity.low / totalDefects) * 100).toFixed(1)}%` : '0%'],
+      ];
+
+      autoTable(doc, {
+        startY: finalY + 20,
+        head: [['Severity', 'Count', 'Percentage']],
+        body: defectData,
+        theme: 'striped',
+        headStyles: { 
+          fillColor: [245, 158, 11],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold'
+        },
+        styles: { 
+          fontSize: 10,
+          cellPadding: 4
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        }
+      });
+
+      doc.save(`analytics-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('PDF export error:', error);
+      alert('Failed to export PDF. Please try again.');
+    }
   };
 
   if (isLoading) {
@@ -188,11 +296,11 @@ export default function AnalyticsPage() {
               Refresh
             </button>
             <button
-              onClick={exportTransactionsCSV}
+              onClick={exportAnalyticsPDF}
               className="px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
             >
               <Download size={16} />
-              Export Transactions
+              Export PDF
             </button>
           </div>
         </div>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import AlertModal from '@/components/AlertModal';
 
 // Create default admin user if none exists
 function ensureDefaultUser() {
@@ -34,6 +35,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   // Ensure default user exists on component mount
   useEffect(() => {
@@ -63,6 +65,15 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
+      {/* Password Reset Info Modal */}
+      <AlertModal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title="Password Reset"
+        message="Please contact your system administrator to reset your password."
+        type="info"
+      />
+
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -134,7 +145,7 @@ export default function LoginPage() {
               </label>
               <button 
                 type="button"
-                onClick={() => alert('Please contact your system administrator to reset your password.')}
+                onClick={() => setShowInfoModal(true)}
                 className="text-sm text-amber-500 hover:text-amber-400 transition-colors"
               >
                 Forgot password?

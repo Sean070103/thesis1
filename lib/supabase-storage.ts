@@ -320,6 +320,158 @@ export async function saveTransactionToSupabase(transaction: MaterialTransaction
   return true;
 }
 
+export async function deleteTransactionFromSupabase(transaction: MaterialTransaction): Promise<boolean> {
+  const supabase = getSupabase();
+  
+  if (!supabase) {
+    const transactions = getFromStorage<MaterialTransaction[]>('transactions', []);
+    const filtered = transactions.filter(t => t.id !== transaction.id);
+    saveToStorage('transactions', filtered);
+    
+    // Reverse the quantity change
+    const materials = getFromStorage<Material[]>('materials', []);
+    const index = materials.findIndex(m => m.materialCode === transaction.materialCode);
+    if (index >= 0) {
+      // Reverse: if it was receiving, subtract; if it was issuance, add back
+      const currentQuantity = materials[index].quantity;
+      materials[index].quantity = transaction.transactionType === 'receiving' 
+        ? Math.max(0, currentQuantity - transaction.quantity)
+        : currentQuantity + transaction.quantity;
+      materials[index].lastUpdated = new Date().toISOString();
+      saveToStorage('materials', materials);
+    }
+    return true;
+  }
+
+  // Delete from Supabase
+  const { error: deleteError } = await supabase
+    .from('transactions')
+    .delete()
+    .eq('id', transaction.id);
+
+  if (deleteError) {
+    console.error('Error deleting transaction:', deleteError);
+    return false;
+  }
+
+  // Reverse the quantity change in materials
+  const { data: material, error: fetchError } = await supabase
+    .from('materials')
+    .select('quantity')
+    .eq('material_code', transaction.materialCode)
+    .single();
+
+  if (!fetchError && material) {
+    const currentQuantity = Number(material.quantity);
+    // Reverse: if it was receiving, subtract; if it was issuance, add back
+    const newQuantity = transaction.transactionType === 'receiving' 
+      ? Math.max(0, currentQuantity - transaction.quantity)
+      : currentQuantity + transaction.quantity;
+
+    await supabase
+      .from('materials')
+      .update({ 
+        quantity: newQuantity,
+        last_updated: new Date().toISOString()
+      })
+      .eq('material_code', transaction.materialCode);
+  }
+
+  return true;
+}
+
+export async function updateTransactionInSupabase(transaction: MaterialTransaction, oldTransaction: MaterialTransaction): Promise<boolean> {
+  const supabase = getSupabase();
+  
+  if (!supabase) {
+    const transactions = getFromStorage<MaterialTransaction[]>('transactions', []);
+    const index = transactions.findIndex(t => t.id === transaction.id);
+    if (index >= 0) {
+      transactions[index] = transaction;
+      saveToStorage('transactions', transactions);
+      
+      // Update material quantity: reverse old, apply new
+      const materials = getFromStorage<Material[]>('materials', []);
+      const matIndex = materials.findIndex(m => m.materialCode === transaction.materialCode);
+      if (matIndex >= 0) {
+        let quantity = materials[matIndex].quantity;
+        
+        // Reverse old transaction
+        if (oldTransaction.transactionType === 'receiving') {
+          quantity = Math.max(0, quantity - oldTransaction.quantity);
+        } else {
+          quantity += oldTransaction.quantity;
+        }
+        
+        // Apply new transaction
+        if (transaction.transactionType === 'receiving') {
+          quantity += transaction.quantity;
+        } else {
+          quantity = Math.max(0, quantity - transaction.quantity);
+        }
+        
+        materials[matIndex].quantity = quantity;
+        materials[matIndex].lastUpdated = new Date().toISOString();
+        saveToStorage('materials', materials);
+      }
+    }
+    return true;
+  }
+
+  const { error } = await supabase
+    .from('transactions')
+    .update({
+      material_code: transaction.materialCode,
+      material_description: transaction.materialDescription,
+      transaction_type: transaction.transactionType,
+      quantity: transaction.quantity,
+      unit: transaction.unit,
+      user_name: transaction.user,
+      notes: transaction.notes,
+    })
+    .eq('id', transaction.id);
+
+  if (error) {
+    console.error('Error updating transaction:', error);
+    return false;
+  }
+
+  // Update material quantity: reverse old, apply new
+  const { data: material, error: fetchError } = await supabase
+    .from('materials')
+    .select('quantity')
+    .eq('material_code', transaction.materialCode)
+    .single();
+
+  if (!fetchError && material) {
+    let quantity = Number(material.quantity);
+    
+    // Reverse old transaction
+    if (oldTransaction.transactionType === 'receiving') {
+      quantity = Math.max(0, quantity - oldTransaction.quantity);
+    } else {
+      quantity += oldTransaction.quantity;
+    }
+    
+    // Apply new transaction
+    if (transaction.transactionType === 'receiving') {
+      quantity += transaction.quantity;
+    } else {
+      quantity = Math.max(0, quantity - transaction.quantity);
+    }
+
+    await supabase
+      .from('materials')
+      .update({ 
+        quantity,
+        last_updated: new Date().toISOString()
+      })
+      .eq('material_code', transaction.materialCode);
+  }
+
+  return true;
+}
+
 export async function updateMaterialQuantity(
   materialCode: string, 
   quantityChange: number, 
@@ -379,16 +531,23 @@ export async function updateMaterialQuantity(
 
 export async function getDefectsFromSupabase(): Promise<Defect[]> {
   const supabase = getSupabase();
-  
+
   if (!supabase) {
     return getFromStorage<Defect[]>('defects', []);
   }
 
-  const { data, error } = await supabase
+  // Try with created_at first (common column name), fallback to no order
+  let data, error;
+  
+  const result = await supabase
     .from('defects')
     .select('*')
-    .order('reported_date', { ascending: false });
+    .order('created_at', { ascending: false });
+  
+  data = result.data;
+  error = result.error;
 
+  // If table doesn't exist or other error, fallback to localStorage
   if (error) {
     console.error('Error fetching defects:', error);
     return getFromStorage<Defect[]>('defects', []);
@@ -404,7 +563,7 @@ export async function getDefectsFromSupabase(): Promise<Defect[]> {
     severity: d.severity as 'low' | 'medium' | 'high' | 'critical',
     description: d.description,
     reportedBy: d.reported_by,
-    reportedDate: d.reported_date,
+    reportedDate: d.reported_date || d.created_at,
     status: d.status as 'open' | 'in-progress' | 'resolved',
     resolutionNotes: d.resolution_notes,
   }));
@@ -582,6 +741,70 @@ export async function deleteAlertFromSupabase(id: string): Promise<boolean> {
 
   if (error) {
     console.error('Error deleting alert:', error);
+    return false;
+  }
+  return true;
+}
+
+export async function clearAllAlertsFromSupabase(): Promise<boolean> {
+  const supabase = getSupabase();
+  
+  if (!supabase) {
+    saveToStorage('alerts', []);
+    return true;
+  }
+
+  const { error } = await supabase
+    .from('alerts')
+    .delete()
+    .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all rows
+
+  if (error) {
+    console.error('Error clearing alerts:', error);
+    return false;
+  }
+  return true;
+}
+
+export async function clearAcknowledgedAlertsFromSupabase(): Promise<boolean> {
+  const supabase = getSupabase();
+  
+  if (!supabase) {
+    const alerts = getFromStorage<Alert[]>('alerts', []);
+    const filtered = alerts.filter(a => !a.acknowledged);
+    saveToStorage('alerts', filtered);
+    return true;
+  }
+
+  const { error } = await supabase
+    .from('alerts')
+    .delete()
+    .eq('acknowledged', true);
+
+  if (error) {
+    console.error('Error clearing acknowledged alerts:', error);
+    return false;
+  }
+  return true;
+}
+
+export async function acknowledgeAllAlertsInSupabase(): Promise<boolean> {
+  const supabase = getSupabase();
+  
+  if (!supabase) {
+    const alerts = getFromStorage<Alert[]>('alerts', []);
+    const updated = alerts.map(a => ({ ...a, acknowledged: true }));
+    saveToStorage('alerts', updated);
+    return true;
+  }
+
+  const { error } = await supabase
+    .from('alerts')
+    .update({ acknowledged: true })
+    .eq('acknowledged', false);
+
+  if (error) {
+    console.error('Error acknowledging all alerts:', error);
     return false;
   }
   return true;

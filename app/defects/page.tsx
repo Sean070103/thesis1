@@ -10,6 +10,40 @@ import {
   generateId 
 } from '@/lib/supabase-storage';
 import { Defect, Material } from '@/types';
+import ConfirmModal from '@/components/ConfirmModal';
+import AlertModal from '@/components/AlertModal';
+
+// Helper function to send defect email notifications
+const sendDefectEmail = async (defect: Defect) => {
+  try {
+    // Get notification settings from localStorage
+    const savedSettings = localStorage.getItem('notificationSettings');
+    if (!savedSettings) return;
+    
+    const settings = JSON.parse(savedSettings);
+    if (!settings.emailAlerts || !settings.defectEmails || !settings.emailRecipients) return;
+
+    await fetch('/api/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'defect',
+        to: settings.emailRecipients,
+        data: {
+          materialCode: defect.materialCode,
+          materialDescription: defect.materialDescription,
+          defectType: defect.defectType,
+          quantity: defect.quantity,
+          severity: defect.severity,
+          reportedBy: defect.reportedBy,
+          date: defect.reportedDate,
+        },
+      }),
+    });
+  } catch (error) {
+    console.error('Failed to send defect email:', error);
+  }
+};
 
 export default function DefectsPage() {
   const [defects, setDefects] = useState<Defect[]>([]);
@@ -31,6 +65,22 @@ export default function DefectsPage() {
     status: 'open',
   });
 
+  // Modal states
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; defectId: string | null }>({
+    isOpen: false,
+    defectId: null,
+  });
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({ isOpen: false, title: '', message: '', type: 'info' });
+
+  const showAlert = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setAlertModal({ isOpen: true, title, message, type });
+  };
+
   useEffect(() => {
     loadData();
   }, []);
@@ -51,23 +101,23 @@ export default function DefectsPage() {
     
     // Validation
     if (!formData.materialCode) {
-      alert('Please select a material');
+      showAlert('Validation Error', 'Please select a material', 'warning');
       return;
     }
     if (!formData.defectType?.trim()) {
-      alert('Please enter a defect type');
+      showAlert('Validation Error', 'Please enter a defect type', 'warning');
       return;
     }
     if (!formData.quantity || formData.quantity <= 0) {
-      alert('Please enter a valid quantity (greater than 0)');
+      showAlert('Validation Error', 'Please enter a valid quantity (greater than 0)', 'warning');
       return;
     }
     if (!formData.description?.trim()) {
-      alert('Please enter a description');
+      showAlert('Validation Error', 'Please enter a description', 'warning');
       return;
     }
     if (!formData.reportedBy?.trim()) {
-      alert('Please enter who reported this defect');
+      showAlert('Validation Error', 'Please enter who reported this defect', 'warning');
       return;
     }
     
@@ -93,11 +143,16 @@ export default function DefectsPage() {
     const success = await saveDefectToSupabase(defect);
     
     if (success) {
+      // Send email notification only for new defects (not edits)
+      if (!editingDefect) {
+        await sendDefectEmail(defect);
+      }
+      
       await loadData();
       setIsModalOpen(false);
       resetForm();
     } else {
-      alert('Failed to save defect. Please try again.');
+      showAlert('Error', 'Failed to save defect. Please try again.', 'error');
     }
     
     setIsSaving(false);
@@ -109,14 +164,20 @@ export default function DefectsPage() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this defect record?')) {
-      const success = await deleteDefectFromSupabase(id);
-      if (success) {
-        await loadData();
-      } else {
-        alert('Failed to delete defect. Please try again.');
-      }
+  const handleDeleteClick = (id: string) => {
+    setDeleteModal({ isOpen: true, defectId: id });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteModal.defectId) return;
+    
+    const success = await deleteDefectFromSupabase(deleteModal.defectId);
+    setDeleteModal({ isOpen: false, defectId: null });
+    
+    if (success) {
+      await loadData();
+    } else {
+      showAlert('Error', 'Failed to delete defect. Please try again.', 'error');
     }
   };
 
@@ -160,6 +221,27 @@ export default function DefectsPage() {
 
   return (
     <div className="min-h-screen bg-black">
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, defectId: null })}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Defect"
+        message="Are you sure you want to delete this defect record? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
+
+      {/* Alert Modal */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+      />
+
       {/* Header */}
       <div className="bg-slate-900 border-b border-slate-800 px-8 py-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
@@ -271,7 +353,7 @@ export default function DefectsPage() {
                             <Edit size={18} />
                           </button>
                           <button
-                            onClick={() => handleDelete(defect.id)}
+                            onClick={() => handleDeleteClick(defect.id)}
                             className="p-2 text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
                           >
                             <Trash2 size={18} />

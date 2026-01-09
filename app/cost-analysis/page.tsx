@@ -1,13 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, Package, AlertTriangle, Calculator, Download, RefreshCw, Calendar, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Package, AlertTriangle, Calculator, Download, RefreshCw, Calendar, Loader2, Banknote } from 'lucide-react';
 import { 
   getMaterialsFromSupabase, 
   getTransactionsFromSupabase, 
   getDefectsFromSupabase 
 } from '@/lib/supabase-storage';
-import { exportToCSV } from '@/lib/export';
 import { Material, MaterialTransaction, Defect } from '@/types';
 
 export default function CostAnalysisPage() {
@@ -172,26 +171,95 @@ export default function CostAnalysisPage() {
   const costTrends = getCostTrends();
   const maxCost = Math.max(...costTrends.map(t => Math.max(t.receiving, t.issuance)), 1);
 
-  const handleExportReport = () => {
-    const periodLabel = dateRange === '7d' ? '7 Days' : dateRange === '30d' ? '30 Days' : dateRange === '90d' ? '90 Days' : dateRange === '1y' ? '1 Year' : 'All Time';
-    const rows = [
-      { metric: 'Total Inventory Value', value: `$${totalInventoryValue.toLocaleString()}`, period: 'Current' },
-      { metric: 'Receiving Costs', value: `$${receivingCost.toLocaleString()}`, period: periodLabel },
-      { metric: 'Issuance Costs', value: `$${issuanceCost.toLocaleString()}`, period: periodLabel },
-      { metric: 'Defect Losses', value: `$${defectCost.toLocaleString()}`, period: 'All Time' },
-      { metric: 'Net Cost Flow', value: `$${(receivingCost - issuanceCost).toLocaleString()}`, period: periodLabel },
-      ...categoryCosts.map(item => ({
-        metric: `Category: ${item.category}`,
-        value: `$${item.cost.toLocaleString()} (${item.count} units)`,
-        period: 'Current',
-      })),
-    ];
+  const handleExportReport = async () => {
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
 
-    exportToCSV(`cost-analysis-${new Date().toISOString().split('T')[0]}.csv`, rows, [
-      { key: 'metric', label: 'Metric' },
-      { key: 'value', label: 'Value' },
-      { key: 'period', label: 'Period' },
-    ]);
+      const doc = new jsPDF();
+      const periodLabel = dateRange === '7d' ? '7 Days' : dateRange === '30d' ? '30 Days' : dateRange === '90d' ? '90 Days' : dateRange === '1y' ? '1 Year' : 'All Time';
+      
+      // Title
+      doc.setFontSize(20);
+      doc.setTextColor(41, 37, 36);
+      doc.text('Cost Analysis Report', 14, 22);
+      
+      // Subtitle
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
+      doc.text(`Period: ${periodLabel}`, 14, 36);
+
+      // Key Metrics Section
+      doc.setFontSize(14);
+      doc.setTextColor(41, 37, 36);
+      doc.text('Key Metrics', 14, 50);
+
+      const metricsData = [
+        ['Total Inventory Value', `₱${totalInventoryValue.toLocaleString()}`, 'Current'],
+        ['Receiving Costs', `₱${receivingCost.toLocaleString()}`, periodLabel],
+        ['Issuance Costs', `₱${issuanceCost.toLocaleString()}`, periodLabel],
+        ['Defect Losses', `₱${defectCost.toLocaleString()}`, 'All Time'],
+        ['Net Cost Flow', `₱${(receivingCost - issuanceCost).toLocaleString()}`, periodLabel],
+      ];
+
+      autoTable(doc, {
+        startY: 55,
+        head: [['Metric', 'Value', 'Period']],
+        body: metricsData,
+        theme: 'striped',
+        headStyles: { 
+          fillColor: [245, 158, 11],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold'
+        },
+        styles: { 
+          fontSize: 10,
+          cellPadding: 4
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        }
+      });
+
+      // Category Breakdown Section
+      const finalY = (doc as any).lastAutoTable.finalY || 120;
+      
+      doc.setFontSize(14);
+      doc.setTextColor(41, 37, 36);
+      doc.text('Cost by Category', 14, finalY + 15);
+
+      const categoryData = categoryCosts.map(item => [
+        item.category,
+        `₱${item.cost.toLocaleString()}`,
+        item.count.toString(),
+        `${totalInventoryValue > 0 ? ((item.cost / totalInventoryValue) * 100).toFixed(1) : 0}%`
+      ]);
+
+      autoTable(doc, {
+        startY: finalY + 20,
+        head: [['Category', 'Cost', 'Units', 'Percentage']],
+        body: categoryData,
+        theme: 'striped',
+        headStyles: { 
+          fillColor: [245, 158, 11],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold'
+        },
+        styles: { 
+          fontSize: 10,
+          cellPadding: 4
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        }
+      });
+
+      doc.save(`cost-analysis-${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('PDF export error:', error);
+      alert('Failed to export PDF. Please try again.');
+    }
   };
 
   if (isLoading) {
@@ -228,7 +296,7 @@ export default function CostAnalysisPage() {
               className="px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
             >
               <Download size={16} />
-              Export Report
+              Export PDF
             </button>
           </div>
         </div>
@@ -265,7 +333,7 @@ export default function CostAnalysisPage() {
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Total Inventory Value</p>
               <Package className="text-blue-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-2">${totalInventoryValue.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-white mb-2">₱{totalInventoryValue.toLocaleString()}</p>
             <p className="text-xs text-slate-500">Current stock value</p>
           </div>
           <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
@@ -273,7 +341,7 @@ export default function CostAnalysisPage() {
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Receiving Costs</p>
               <TrendingUp className="text-emerald-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-2">${receivingCost.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-white mb-2">₱{receivingCost.toLocaleString()}</p>
             <p className="text-xs text-slate-500">In selected period</p>
           </div>
           <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
@@ -281,7 +349,7 @@ export default function CostAnalysisPage() {
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Issuance Costs</p>
               <TrendingDown className="text-blue-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-2">${issuanceCost.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-white mb-2">₱{issuanceCost.toLocaleString()}</p>
             <p className="text-xs text-slate-500">In selected period</p>
           </div>
           <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
@@ -289,7 +357,7 @@ export default function CostAnalysisPage() {
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Defect Losses</p>
               <AlertTriangle className="text-rose-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-2">${defectCost.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-white mb-2">₱{defectCost.toLocaleString()}</p>
             <p className="text-xs text-slate-500">Estimated value loss</p>
           </div>
         </div>
@@ -307,12 +375,12 @@ export default function CostAnalysisPage() {
                   <div
                     className="w-full bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-t transition-all cursor-pointer"
                     style={{ height: `${(trend.receiving / Math.max(maxCost, 1)) * 100}%`, minHeight: '4px' }}
-                    title={`Receiving: $${trend.receiving.toLocaleString()}`}
+                    title={`Receiving: ₱${trend.receiving.toLocaleString()}`}
                   />
                   <div
                     className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t transition-all cursor-pointer"
                     style={{ height: `${(trend.issuance / Math.max(maxCost, 1)) * 100}%`, minHeight: '4px' }}
-                    title={`Issuance: $${trend.issuance.toLocaleString()}`}
+                    title={`Issuance: ₱${trend.issuance.toLocaleString()}`}
                   />
                 </div>
                 <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
@@ -354,7 +422,7 @@ export default function CostAnalysisPage() {
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-semibold text-white">{item.category}</span>
                         <div className="text-right">
-                          <span className="text-sm font-bold text-slate-300">${item.cost.toLocaleString()}</span>
+                          <span className="text-sm font-bold text-slate-300">₱{item.cost.toLocaleString()}</span>
                           <span className="text-xs text-slate-500 ml-2">({item.count} units)</span>
                         </div>
                       </div>
@@ -375,14 +443,14 @@ export default function CostAnalysisPage() {
           {/* Cost Summary */}
           <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
             <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <DollarSign className="text-slate-400" size={20} />
+              <Banknote className="text-slate-400" size={20} />
               Cost Summary
             </h3>
             <div className="space-y-4">
               <div className="bg-slate-900 rounded-lg p-5 border border-slate-700">
                 <p className="text-sm text-slate-400 mb-2">Net Cost Flow</p>
                 <p className="text-2xl font-bold text-white mb-1">
-                  ${(receivingCost - issuanceCost).toLocaleString()}
+                  ₱{(receivingCost - issuanceCost).toLocaleString()}
                 </p>
                 <p className="text-xs text-slate-500">
                   {receivingCost > issuanceCost ? 'Net increase in inventory value' : 'Net decrease in inventory value'}
@@ -398,7 +466,7 @@ export default function CostAnalysisPage() {
               <div className="bg-slate-900 rounded-lg p-5 border border-slate-700">
                 <p className="text-sm text-slate-400 mb-2">Average Cost per Transaction</p>
                 <p className="text-2xl font-bold text-white mb-1">
-                  ${filteredTransactions.length > 0 
+                  ₱{filteredTransactions.length > 0 
                     ? ((receivingCost + issuanceCost) / filteredTransactions.length).toLocaleString(undefined, { maximumFractionDigits: 2 })
                     : '0'}
                 </p>
@@ -407,7 +475,7 @@ export default function CostAnalysisPage() {
               <div className="bg-slate-900 rounded-lg p-5 border border-rose-700">
                 <p className="text-sm text-slate-400 mb-2">Total Estimated Losses</p>
                 <p className="text-2xl font-bold text-rose-400 mb-1">
-                  ${defectCost.toLocaleString()}
+                  ₱{defectCost.toLocaleString()}
                 </p>
                 <p className="text-xs text-slate-500">From {defects.length} defect reports</p>
               </div>

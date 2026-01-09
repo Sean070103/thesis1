@@ -40,7 +40,7 @@ export interface Defect {
 
 export interface Alert {
   id: string;
-  type: 'mismatch' | 'low-stock' | 'discrepancy';
+  type: 'mismatch' | 'low-stock' | 'discrepancy' | 'defect' | 'transaction';
   materialCode: string;
   materialDescription: string;
   message: string;
@@ -50,6 +50,7 @@ export interface Alert {
   severity: 'warning' | 'error' | 'critical';
   createdAt: string;
   acknowledged: boolean;
+  relatedId?: string; // ID of related transaction/defect
 }
 
 export interface DashboardMetrics {
