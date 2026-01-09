@@ -8,9 +8,11 @@ import {
   getDefectsFromSupabase, 
   getAlertsFromSupabase 
 } from '@/lib/supabase-storage';
+import { useTheme } from '@/contexts/ThemeContext';
 import { DashboardMetrics, Material, MaterialTransaction, Defect, Alert } from '@/types';
 
 export default function Dashboard() {
+  const { theme } = useTheme();
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     totalMaterials: 0,
     totalTransactions: 0,
@@ -220,52 +222,72 @@ export default function Dashboard() {
     URL.revokeObjectURL(url);
   };
 
+  // Theme-aware classes
+  const bgMain = theme === 'dark' 
+    ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-black' 
+    : 'bg-gradient-to-br from-slate-50 via-white to-slate-100';
+  const textPrimary = theme === 'dark' ? 'text-white' : 'text-slate-900';
+  const textSecondary = theme === 'dark' ? 'text-slate-400' : 'text-slate-600';
+  const textMuted = theme === 'dark' ? 'text-slate-500' : 'text-slate-500';
+  const borderColor = theme === 'dark' ? 'border-slate-800/50' : 'border-slate-200';
+  const cardBg = theme === 'dark' 
+    ? 'bg-gradient-to-r from-slate-800/30 to-slate-900/30' 
+    : 'bg-gradient-to-r from-white to-slate-50';
+  const headerBg = theme === 'dark'
+    ? 'bg-gradient-to-r from-slate-900/80 via-slate-900/60 to-slate-900/80'
+    : 'bg-gradient-to-r from-white/90 via-white/80 to-white/90';
+  const buttonBg = theme === 'dark'
+    ? 'from-slate-800 to-slate-700 group-hover:from-slate-700 group-hover:to-slate-600'
+    : 'from-slate-100 to-slate-200 group-hover:from-slate-200 group-hover:to-slate-300';
+  const buttonBorder = theme === 'dark' ? 'border-slate-600/50' : 'border-slate-300';
+  const buttonText = theme === 'dark' ? 'text-slate-200' : 'text-slate-700';
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black flex items-center justify-center">
+      <div className={`min-h-screen ${bgMain} flex items-center justify-center transition-colors duration-300`}>
         <div className="text-center">
           <div className="relative">
             <div className="absolute inset-0 bg-amber-500/20 blur-2xl rounded-full animate-pulse" />
             <Loader2 className="relative animate-spin text-amber-500 mx-auto mb-4" size={56} />
           </div>
-          <p className="text-slate-400 font-medium">Loading dashboard...</p>
+          <p className={`${textSecondary} font-medium`}>Loading dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black">
+    <div className={`min-h-screen ${bgMain} transition-colors duration-300`}>
       {/* Ambient background effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl" />
+        <div className={`absolute top-0 right-1/4 w-96 h-96 rounded-full blur-3xl ${theme === 'dark' ? 'bg-amber-500/5' : 'bg-amber-500/10'}`} />
+        <div className={`absolute bottom-1/4 left-1/4 w-80 h-80 rounded-full blur-3xl ${theme === 'dark' ? 'bg-blue-500/5' : 'bg-blue-500/10'}`} />
+        <div className={`absolute top-1/2 right-0 w-64 h-64 rounded-full blur-3xl ${theme === 'dark' ? 'bg-purple-500/5' : 'bg-purple-500/10'}`} />
       </div>
 
       {/* Header */}
-      <div className="relative border-b border-slate-800/50">
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/60 to-slate-900/80 backdrop-blur-xl" />
+      <div className={`relative border-b ${borderColor} transition-colors duration-300`}>
+        <div className={`absolute inset-0 ${headerBg} backdrop-blur-xl`} />
         <div className="relative px-8 py-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-2xl font-bold text-white tracking-tight">Dashboard</h1>
+                <h1 className={`text-2xl font-bold ${textPrimary} tracking-tight`}>Dashboard</h1>
                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
                   <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
                   <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wide">Live</span>
                 </div>
               </div>
-              <p className="text-sm text-slate-400">Overview of key metrics and recent activities</p>
+              <p className={`text-sm ${textSecondary}`}>Overview of key metrics and recent activities</p>
             </div>
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
               className="group relative px-5 py-2.5 overflow-hidden rounded-xl font-semibold text-sm transition-all duration-300 disabled:opacity-50"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-800 to-slate-700 group-hover:from-slate-700 group-hover:to-slate-600 transition-all duration-300" />
-              <div className="absolute inset-0 border border-slate-600/50 group-hover:border-slate-500/50 rounded-xl transition-colors" />
-              <div className="relative flex items-center gap-2 text-slate-200">
+              <div className={`absolute inset-0 bg-gradient-to-r ${buttonBg} transition-all duration-300`} />
+              <div className={`absolute inset-0 border ${buttonBorder} group-hover:border-slate-500/50 rounded-xl transition-colors`} />
+              <div className={`relative flex items-center gap-2 ${buttonText}`}>
                 <RefreshCw className={`${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} size={16} />
                 Refresh
               </div>
@@ -295,17 +317,17 @@ export default function Dashboard() {
                   {/* Icon & Title Row */}
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">
+                      <p className={`text-[11px] font-semibold uppercase tracking-wider mb-0.5 ${textMuted}`}>
                         {kpi.title}
                       </p>
                     </div>
-                    <div className={`p-2.5 ${kpi.iconBg} rounded-xl border border-white/5`}>
+                    <div className={`p-2.5 ${kpi.iconBg} rounded-xl border ${theme === 'dark' ? 'border-white/5' : 'border-slate-200'}`}>
                       <Icon className={kpi.iconColor} size={18} />
                     </div>
                   </div>
                   
                   {/* Value */}
-                  <p className="text-3xl font-bold text-white mb-3 number-display tracking-tight">
+                  <p className={`text-3xl font-bold ${textPrimary} mb-3 number-display tracking-tight`}>
                     {kpi.value}
                   </p>
                   
@@ -322,7 +344,7 @@ export default function Dashboard() {
                         <span>-{kpi.trend.value}%</span>
                       </div>
                     )}
-                    <span className="text-[11px] text-slate-500">{kpi.comparison}</span>
+                    <span className={`text-[11px] ${textMuted}`}>{kpi.comparison}</span>
                   </div>
                 </div>
               </div>
@@ -337,33 +359,45 @@ export default function Dashboard() {
             {/* Header */}
             <div className="flex items-start justify-between mb-6">
               <div className="section-header">
-                <h3 className="text-lg font-bold text-white mb-1">Transaction Trend</h3>
-                <p className="text-sm text-slate-400">Track volume to identify patterns</p>
+                <h3 className={`text-lg font-bold ${textPrimary} mb-1`}>Transaction Trend</h3>
+                <p className={`text-sm ${textSecondary}`}>Track volume to identify patterns</p>
               </div>
               <div className="flex items-center gap-2">
                 <button 
                   onClick={handleRefresh}
-                  className="p-2.5 bg-slate-800/50 hover:bg-slate-700/50 rounded-xl border border-slate-700/30 hover:border-slate-600/50 transition-all duration-300"
+                  className={`p-2.5 rounded-xl border transition-all duration-300 ${
+                    theme === 'dark' 
+                      ? 'bg-slate-800/50 hover:bg-slate-700/50 border-slate-700/30 hover:border-slate-600/50' 
+                      : 'bg-slate-100 hover:bg-slate-200 border-slate-200 hover:border-slate-300'
+                  }`}
                 >
-                  <RefreshCw className={`text-slate-400 ${isRefreshing ? 'animate-spin' : ''}`} size={16} />
+                  <RefreshCw className={`${textSecondary} ${isRefreshing ? 'animate-spin' : ''}`} size={16} />
                 </button>
                 <button 
                   onClick={handleExportReport}
-                  className="group flex items-center gap-2 px-4 py-2.5 bg-slate-800/50 hover:bg-slate-700/50 rounded-xl border border-slate-700/30 hover:border-slate-600/50 transition-all duration-300"
+                  className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-300 ${
+                    theme === 'dark' 
+                      ? 'bg-slate-800/50 hover:bg-slate-700/50 border-slate-700/30 hover:border-slate-600/50' 
+                      : 'bg-slate-100 hover:bg-slate-200 border-slate-200 hover:border-slate-300'
+                  }`}
                 >
-                  <Download size={14} className="text-slate-400 group-hover:text-white transition-colors" />
-                  <span className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">Export</span>
+                  <Download size={14} className={`${textSecondary} group-hover:text-amber-500 transition-colors`} />
+                  <span className={`text-sm font-medium ${textSecondary} group-hover:text-amber-500 transition-colors`}>Export</span>
                 </button>
               </div>
             </div>
 
             {/* Stats Card */}
-            <div className="relative mb-5 p-4 bg-gradient-to-br from-slate-800/30 to-slate-900/30 rounded-xl border border-slate-700/20 overflow-hidden">
+            <div className={`relative mb-5 p-4 rounded-xl border overflow-hidden ${
+              theme === 'dark' 
+                ? 'bg-gradient-to-br from-slate-800/30 to-slate-900/30 border-slate-700/20' 
+                : 'bg-gradient-to-br from-slate-50 to-white border-slate-200'
+            }`}>
               <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
               <div className="relative flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total Transactions YTD</p>
-                  <p className="text-3xl font-bold text-white number-display">{metrics.totalTransactions.toLocaleString()}</p>
+                  <p className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${textMuted}`}>Total Transactions YTD</p>
+                  <p className={`text-3xl font-bold ${textPrimary} number-display`}>{metrics.totalTransactions.toLocaleString()}</p>
                 </div>
                 <div className="stat-badge-positive">
                   <Zap size={12} />
@@ -381,7 +415,9 @@ export default function Dashboard() {
                   className={`relative px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-300 overflow-hidden ${
                     timeFilter === filter
                       ? 'text-white'
-                      : 'text-slate-400 hover:text-white bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/30'
+                      : theme === 'dark' 
+                        ? 'text-slate-400 hover:text-white bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/30'
+                        : 'text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200'
                   }`}
                 >
                   {timeFilter === filter && (
@@ -393,10 +429,14 @@ export default function Dashboard() {
             </div>
 
             {/* Chart */}
-            <div className="relative h-56 bg-slate-900/50 rounded-xl p-4 border border-slate-800/50 overflow-hidden">
+            <div className={`relative h-56 rounded-xl p-4 border overflow-hidden ${
+              theme === 'dark' 
+                ? 'bg-slate-900/50 border-slate-800/50' 
+                : 'bg-slate-50 border-slate-200'
+            }`}>
               {/* Grid pattern */}
               <div className="absolute inset-0 opacity-30" style={{
-                backgroundImage: 'linear-gradient(rgba(148, 163, 184, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, 0.03) 1px, transparent 1px)',
+                backgroundImage: `linear-gradient(${theme === 'dark' ? 'rgba(148, 163, 184, 0.03)' : 'rgba(148, 163, 184, 0.1)'} 1px, transparent 1px), linear-gradient(90deg, ${theme === 'dark' ? 'rgba(148, 163, 184, 0.03)' : 'rgba(148, 163, 184, 0.1)'} 1px, transparent 1px)`,
                 backgroundSize: '40px 40px'
               }} />
               
@@ -445,7 +485,7 @@ export default function Dashboard() {
                       cx={60 + (i * 60)}
                       cy={200 - (value / maxValue) * 170}
                       r="6"
-                      fill="#0f172a"
+                      fill={theme === 'dark' ? '#0f172a' : '#ffffff'}
                       stroke="#f59e0b"
                       strokeWidth="2"
                     />
@@ -460,9 +500,13 @@ export default function Dashboard() {
               </svg>
               
               {/* Legend */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 bg-slate-900/80 backdrop-blur-sm rounded-full border border-slate-700/30">
+              <div className={`absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 backdrop-blur-sm rounded-full border ${
+                theme === 'dark' 
+                  ? 'bg-slate-900/80 border-slate-700/30' 
+                  : 'bg-white/90 border-slate-200'
+              }`}>
                 <div className="w-2.5 h-2.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full shadow-lg shadow-amber-500/50" />
-                <span className="text-xs text-slate-400 font-medium">All Overview</span>
+                <span className={`text-xs font-medium ${textSecondary}`}>All Overview</span>
               </div>
             </div>
           </div>
@@ -470,15 +514,15 @@ export default function Dashboard() {
           {/* Transactions by Type */}
           <div className="premium-card p-6 animate-fade-in" style={{ animationDelay: '400ms' }}>
             <div className="section-header mb-6">
-              <h3 className="text-lg font-bold text-white mb-1">Transactions by Type</h3>
-              <p className="text-sm text-slate-400">Breakdown of transaction categories</p>
+              <h3 className={`text-lg font-bold ${textPrimary} mb-1`}>Transactions by Type</h3>
+              <p className={`text-sm ${textSecondary}`}>Breakdown of transaction categories</p>
             </div>
             
             <div className="space-y-4">
               {segments.map((segment, index) => (
                 <div 
                   key={index}
-                  className={`group relative p-4 rounded-xl border ${segment.borderColor} bg-gradient-to-r from-slate-800/30 to-slate-900/30 hover:from-slate-800/50 hover:to-slate-900/50 transition-all duration-300`}
+                  className={`group relative p-4 rounded-xl border ${segment.borderColor} ${cardBg} hover:shadow-md transition-all duration-300`}
                 >
                   {/* Hover glow */}
                   <div className={`absolute inset-0 ${segment.lightBg} rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
@@ -487,8 +531,8 @@ export default function Dashboard() {
                     <div className="flex items-center gap-4">
                       <div className={`w-3 h-10 bg-gradient-to-b ${segment.gradient} rounded-full shadow-lg`} />
                       <div>
-                        <p className="text-sm font-semibold text-white mb-1">{segment.name}</p>
-                        <p className="text-xs text-slate-400">{segment.value.toLocaleString()} units</p>
+                        <p className={`text-sm font-semibold ${textPrimary} mb-1`}>{segment.name}</p>
+                        <p className={`text-xs ${textSecondary}`}>{segment.value.toLocaleString()} units</p>
                       </div>
                     </div>
                     <div className={segment.isPositive ? 'stat-badge-positive' : 'stat-badge-negative'}>
@@ -498,7 +542,9 @@ export default function Dashboard() {
                   </div>
                   
                   {/* Progress bar */}
-                  <div className="relative mt-3 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div className={`relative mt-3 h-1.5 rounded-full overflow-hidden ${
+                    theme === 'dark' ? 'bg-slate-800' : 'bg-slate-200'
+                  }`}>
                     <div 
                       className={`absolute inset-y-0 left-0 bg-gradient-to-r ${segment.gradient} rounded-full transition-all duration-500`}
                       style={{ width: `${Math.min(parseFloat(segment.percentage), 100)}%` }}
@@ -515,14 +561,18 @@ export default function Dashboard() {
           {/* Order Volume Distribution */}
           <div className="premium-card p-6 animate-fade-in" style={{ animationDelay: '500ms' }}>
             <div className="section-header mb-6">
-              <h3 className="text-lg font-bold text-white mb-1">Volume Distribution</h3>
-              <p className="text-sm text-slate-400">Monthly transaction breakdown</p>
+              <h3 className={`text-lg font-bold ${textPrimary} mb-1`}>Volume Distribution</h3>
+              <p className={`text-sm ${textSecondary}`}>Monthly transaction breakdown</p>
             </div>
             
-            <div className="relative h-56 bg-slate-900/50 rounded-xl p-4 border border-slate-800/50 overflow-hidden">
+            <div className={`relative h-56 rounded-xl p-4 border overflow-hidden ${
+              theme === 'dark' 
+                ? 'bg-slate-900/50 border-slate-800/50' 
+                : 'bg-slate-50 border-slate-200'
+            }`}>
               {/* Background pattern */}
               <div className="absolute inset-0 opacity-20" style={{
-                backgroundImage: 'linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px)',
+                backgroundImage: `linear-gradient(${theme === 'dark' ? 'rgba(148, 163, 184, 0.05)' : 'rgba(148, 163, 184, 0.15)'} 1px, transparent 1px)`,
                 backgroundSize: '1px 40px'
               }} />
               
@@ -545,7 +595,7 @@ export default function Dashboard() {
                         <div className="absolute top-0 inset-x-1 h-1 bg-white/30 rounded-full" />
                       </div>
                     </div>
-                    <span className="absolute -bottom-0 text-[10px] text-slate-500 font-medium group-hover:text-amber-400 transition-colors">{months[i]}</span>
+                    <span className={`absolute -bottom-0 text-[10px] font-medium group-hover:text-amber-400 transition-colors ${textMuted}`}>{months[i]}</span>
                   </div>
                 ))}
               </div>
@@ -556,29 +606,36 @@ export default function Dashboard() {
           <div className="premium-card p-6 animate-fade-in" style={{ animationDelay: '600ms' }}>
             <div className="flex items-center justify-between mb-6">
               <div className="section-header">
-                <h3 className="text-lg font-bold text-white mb-1">Recent Activities</h3>
-                <p className="text-sm text-slate-400">Latest system events</p>
+                <h3 className={`text-lg font-bold ${textPrimary} mb-1`}>Recent Activities</h3>
+                <p className={`text-sm ${textSecondary}`}>Latest system events</p>
               </div>
-              <div className="p-2.5 bg-slate-800/50 rounded-xl border border-slate-700/30">
-                <Activity className="text-slate-400" size={18} />
+              <div className={`p-2.5 rounded-xl border ${
+                theme === 'dark' 
+                  ? 'bg-slate-800/50 border-slate-700/30' 
+                  : 'bg-slate-100 border-slate-200'
+              }`}>
+                <Activity className={textSecondary} size={18} />
               </div>
             </div>
             
             <div className="space-y-3 max-h-56 overflow-y-auto custom-scrollbar pr-2">
               {metrics.recentActivities.length === 0 ? (
                 <div className="text-center py-10">
-                  <div className="relative inline-flex items-center justify-center w-16 h-16 mb-4">
-                    <div className="absolute inset-0 bg-slate-700/50 rounded-2xl" />
-                    <Activity className="relative text-slate-500" size={28} />
+                  <div className={`relative inline-flex items-center justify-center w-16 h-16 mb-4 ${
+                    theme === 'dark' ? 'bg-slate-700/50' : 'bg-slate-200'
+                  } rounded-2xl`}>
+                    <Activity className={textMuted} size={28} />
                   </div>
-                  <p className="text-sm font-medium text-slate-400 mb-1">No recent activities</p>
-                  <p className="text-xs text-slate-500">Activities will appear here as they occur</p>
+                  <p className={`text-sm font-medium ${textSecondary} mb-1`}>No recent activities</p>
+                  <p className={`text-xs ${textMuted}`}>Activities will appear here as they occur</p>
                 </div>
               ) : (
                 metrics.recentActivities.slice(0, 5).map((activity, index) => (
                   <div 
                     key={index}
-                    className="group relative p-3.5 rounded-xl border border-slate-700/30 bg-gradient-to-r from-slate-800/30 to-slate-900/30 hover:from-slate-800/50 hover:to-slate-900/50 transition-all duration-300"
+                    className={`group relative p-3.5 rounded-xl border ${cardBg} hover:shadow-md transition-all duration-300 ${
+                      theme === 'dark' ? 'border-slate-700/30' : 'border-slate-200'
+                    }`}
                   >
                     <div className="flex items-start gap-3">
                       <div className={`shrink-0 p-2.5 rounded-xl border ${
@@ -597,15 +654,15 @@ export default function Dashboard() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white mb-1 truncate group-hover:text-amber-400 transition-colors">
+                        <p className={`text-sm font-medium ${textPrimary} mb-1 truncate group-hover:text-amber-400 transition-colors`}>
                           {activity.description}
                         </p>
-                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                        <div className={`flex items-center gap-1.5 text-xs ${textMuted}`}>
                           <Clock size={10} />
                           {new Date(activity.timestamp).toLocaleString()}
                         </div>
                       </div>
-                      <ArrowUpRight className="shrink-0 text-slate-600 group-hover:text-amber-400 transition-colors" size={14} />
+                      <ArrowUpRight className={`shrink-0 ${textMuted} group-hover:text-amber-400 transition-colors`} size={14} />
                     </div>
                   </div>
                 ))
