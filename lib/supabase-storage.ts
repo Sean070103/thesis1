@@ -73,19 +73,43 @@ export async function saveMaterialToSupabase(material: Material): Promise<boolea
     return true;
   }
 
-  const { error } = await supabase
+  const materialData = {
+    material_code: material.materialCode,
+    description: material.description,
+    category: material.category,
+    unit: material.unit,
+    quantity: material.quantity,
+    location: material.location,
+    sap_quantity: material.sapQuantity,
+    last_updated: new Date().toISOString(),
+  };
+
+  // Check if material exists
+  const { data: existing } = await supabase
     .from('materials')
-    .upsert({
-      id: material.id,
-      material_code: material.materialCode,
-      description: material.description,
-      category: material.category,
-      unit: material.unit,
-      quantity: material.quantity,
-      location: material.location,
-      sap_quantity: material.sapQuantity,
-      last_updated: new Date().toISOString(),
-    }, { onConflict: 'id' });
+    .select('id')
+    .eq('id', material.id)
+    .single();
+
+  let error;
+
+  if (existing) {
+    // Update existing material
+    const result = await supabase
+      .from('materials')
+      .update(materialData)
+      .eq('id', material.id);
+    error = result.error;
+  } else {
+    // Insert new material
+    const result = await supabase
+      .from('materials')
+      .insert({
+        id: material.id,
+        ...materialData,
+      });
+    error = result.error;
+  }
 
   if (error) {
     console.error('Error saving material:', error);
@@ -265,7 +289,7 @@ export async function getTransactionsFromSupabase(): Promise<MaterialTransaction
   }
 
   const { data, error } = await supabase
-    .from('transactions')
+    .from('material_transactions')
     .select('*')
     .order('date', { ascending: false });
 
@@ -299,7 +323,7 @@ export async function saveTransactionToSupabase(transaction: MaterialTransaction
   }
 
   const { error } = await supabase
-    .from('transactions')
+    .from('material_transactions')
     .insert({
       id: transaction.id,
       material_code: transaction.materialCode,
@@ -345,7 +369,7 @@ export async function deleteTransactionFromSupabase(transaction: MaterialTransac
 
   // Delete from Supabase
   const { error: deleteError } = await supabase
-    .from('transactions')
+    .from('material_transactions')
     .delete()
     .eq('id', transaction.id);
 
@@ -419,7 +443,7 @@ export async function updateTransactionInSupabase(transaction: MaterialTransacti
   }
 
   const { error } = await supabase
-    .from('transactions')
+    .from('material_transactions')
     .update({
       material_code: transaction.materialCode,
       material_description: transaction.materialDescription,
@@ -584,22 +608,46 @@ export async function saveDefectToSupabase(defect: Defect): Promise<boolean> {
     return true;
   }
 
-  const { error } = await supabase
+  // Check if defect exists
+  const { data: existing } = await supabase
     .from('defects')
-    .upsert({
-      id: defect.id,
-      material_code: defect.materialCode,
-      material_description: defect.materialDescription,
-      defect_type: defect.defectType,
-      quantity: defect.quantity,
-      unit: defect.unit,
-      severity: defect.severity,
-      description: defect.description,
-      reported_by: defect.reportedBy,
-      reported_date: defect.reportedDate,
-      status: defect.status,
-      resolution_notes: defect.resolutionNotes,
-    }, { onConflict: 'id' });
+    .select('id')
+    .eq('id', defect.id)
+    .single();
+
+  const defectData = {
+    material_code: defect.materialCode,
+    material_description: defect.materialDescription,
+    defect_type: defect.defectType,
+    quantity: defect.quantity,
+    unit: defect.unit,
+    severity: defect.severity,
+    description: defect.description,
+    reported_by: defect.reportedBy,
+    reported_date: defect.reportedDate,
+    status: defect.status,
+    resolution_notes: defect.resolutionNotes,
+  };
+
+  let error;
+
+  if (existing) {
+    // Update existing defect
+    const result = await supabase
+      .from('defects')
+      .update(defectData)
+      .eq('id', defect.id);
+    error = result.error;
+  } else {
+    // Insert new defect
+    const result = await supabase
+      .from('defects')
+      .insert({
+        id: defect.id,
+        ...defectData,
+      });
+    error = result.error;
+  }
 
   if (error) {
     console.error('Error saving defect:', error);
@@ -676,9 +724,10 @@ export async function saveAlertToSupabase(alert: Alert): Promise<boolean> {
     return true;
   }
 
+  // Use insert instead of upsert to avoid onConflict issues
   const { error } = await supabase
     .from('alerts')
-    .upsert({
+    .insert({
       id: alert.id,
       type: alert.type,
       material_code: alert.materialCode,
@@ -690,7 +739,7 @@ export async function saveAlertToSupabase(alert: Alert): Promise<boolean> {
       severity: alert.severity,
       created_at: alert.createdAt,
       acknowledged: alert.acknowledged,
-    }, { onConflict: 'id' });
+    });
 
   if (error) {
     console.error('Error saving alert:', error);
