@@ -616,18 +616,20 @@ export async function saveDefectToSupabase(defect: Defect): Promise<boolean> {
     .single();
 
   const defectData = {
-    material_code: defect.materialCode,
-    material_description: defect.materialDescription,
-    defect_type: defect.defectType,
-    quantity: defect.quantity,
-    unit: defect.unit,
-    severity: defect.severity,
-    description: defect.description,
-    reported_by: defect.reportedBy,
-    reported_date: defect.reportedDate,
-    status: defect.status,
-    resolution_notes: defect.resolutionNotes,
+    material_code: defect.materialCode || '',
+    material_description: defect.materialDescription || '',
+    defect_type: defect.defectType || '',
+    quantity: Number(defect.quantity) || 0,
+    unit: defect.unit || 'PCS',
+    severity: defect.severity || 'medium',
+    description: defect.description || '',
+    reported_by: defect.reportedBy || '',
+    reported_date: defect.reportedDate || new Date().toISOString(),
+    status: defect.status || 'open',
+    resolution_notes: defect.resolutionNotes || null,
   };
+  
+  console.log('Saving defect data:', defectData);
 
   let error;
 
@@ -651,6 +653,7 @@ export async function saveDefectToSupabase(defect: Defect): Promise<boolean> {
 
   if (error) {
     console.error('Error saving defect:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
     return false;
   }
   return true;
