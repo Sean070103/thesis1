@@ -9,6 +9,7 @@ import {
   getMaterialsFromSupabase,
   generateId 
 } from '@/lib/supabase-storage';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Defect, Material } from '@/types';
 import ConfirmModal from '@/components/ConfirmModal';
 import AlertModal from '@/components/AlertModal';
@@ -46,6 +47,7 @@ const sendDefectEmail = async (defect: Defect) => {
 };
 
 export default function DefectsPage() {
+  const { theme } = useTheme();
   const [defects, setDefects] = useState<Defect[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -219,8 +221,22 @@ export default function DefectsPage() {
     );
   });
 
+  // Theme-aware classes
+  const bgMain = theme === 'dark' ? 'bg-black' : 'bg-slate-50';
+  const bgHeader = theme === 'dark' ? 'bg-slate-900' : 'bg-white';
+  const borderColor = theme === 'dark' ? 'border-slate-800' : 'border-slate-200';
+  const textPrimary = theme === 'dark' ? 'text-white' : 'text-slate-900';
+  const textSecondary = theme === 'dark' ? 'text-slate-400' : 'text-slate-600';
+  const textMuted = theme === 'dark' ? 'text-slate-500' : 'text-slate-500';
+  const textTertiary = theme === 'dark' ? 'text-slate-300' : 'text-slate-700';
+  const hoverRow = theme === 'dark' ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50';
+  const bgTableHeader = theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100';
+  const divideColor = theme === 'dark' ? 'divide-slate-700' : 'divide-slate-200';
+  const bgCard = theme === 'dark' ? 'bg-slate-800' : 'bg-white';
+  const borderCard = theme === 'dark' ? 'border-slate-700' : 'border-slate-200';
+
   return (
-    <div className="min-h-screen bg-black">
+    <div className={`min-h-screen ${bgMain} transition-colors duration-300`}>
       {/* Delete Confirmation Modal */}
       <ConfirmModal
         isOpen={deleteModal.isOpen}
@@ -243,18 +259,18 @@ export default function DefectsPage() {
       />
 
       {/* Header */}
-      <div className="bg-slate-900 border-b border-slate-800 px-8 py-6">
+      <div className={`${bgHeader} border-b ${borderColor} px-8 py-6 transition-colors duration-300`}>
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-xl font-semibold text-white">Defects Module</h1>
-            <p className="text-sm text-slate-400 mt-1">Monitor and log defective or damaged materials</p>
+            <h1 className={`text-xl font-semibold ${textPrimary} transition-colors duration-300`}>Defects Module</h1>
+            <p className={`text-sm ${textSecondary} mt-1 transition-colors duration-300`}>Monitor and log defective or damaged materials</p>
           </div>
           <button
             onClick={() => {
               resetForm();
               setIsModalOpen(true);
             }}
-            className="px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-amber-600 to-orange-600 rounded-xl hover:from-amber-500 hover:to-orange-500 transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2"
           >
             <Plus size={18} />
             Report Defect
@@ -263,42 +279,42 @@ export default function DefectsPage() {
       </div>
 
       <div className="p-8 space-y-6">
-        <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+        <div className={`${bgCard} rounded-lg border ${borderCard} p-4 transition-colors duration-300`}>
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+            <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 ${textSecondary} transition-colors duration-300`} size={20} />
             <input
               type="text"
-              placeholder="Search defects..."
+              placeholder="Search defects by material code, description, type, reporter..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border border-slate-700 rounded-lg focus:ring-2 focus:ring-slate-600 focus:border-slate-600 transition-all bg-slate-900 text-white placeholder-slate-500"
+              className={`w-full pl-12 pr-4 py-3 border ${borderCard} rounded-xl focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all ${theme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50'} ${textPrimary} placeholder-slate-500 backdrop-blur-sm transition-colors duration-300`}
             />
           </div>
         </div>
 
-        <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+        <div className={`${bgCard} rounded-lg border ${borderCard} overflow-hidden transition-colors duration-300`}>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-900">
+            <table className="w-full min-w-[1200px]">
+              <thead className={bgTableHeader}>
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Material Code</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Description</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Defect Type</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Quantity</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Severity</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Reported By</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Actions</th>
+                  <th className={`px-4 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider w-32 transition-colors duration-300`}>Date</th>
+                  <th className={`px-4 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider w-40 transition-colors duration-300`}>Material Code</th>
+                  <th className={`px-4 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider min-w-[200px] transition-colors duration-300`}>Description</th>
+                  <th className={`px-4 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider w-36 transition-colors duration-300`}>Defect Type</th>
+                  <th className={`px-4 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider w-28 transition-colors duration-300`}>Quantity</th>
+                  <th className={`px-4 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider w-32 transition-colors duration-300`}>Severity</th>
+                  <th className={`px-4 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider w-32 transition-colors duration-300`}>Status</th>
+                  <th className={`px-4 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider w-36 transition-colors duration-300`}>Reported By</th>
+                  <th className={`px-4 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider w-28 transition-colors duration-300`}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-slate-800 divide-y divide-slate-700">
+              <tbody className={`${bgCard} ${divideColor} transition-colors duration-300`}>
                 {isLoading ? (
                   <tr>
                     <td colSpan={9} className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center">
                         <Loader2 className="animate-spin text-amber-500 mb-4" size={32} />
-                        <p className="text-slate-400">Loading defects...</p>
+                        <p className={textSecondary}>Loading defects...</p>
                       </div>
                     </td>
                   </tr>
@@ -306,26 +322,30 @@ export default function DefectsPage() {
                   <tr>
                     <td colSpan={9} className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center">
-                        <div className="p-4 bg-slate-900 rounded-full mb-4">
-                          <AlertTriangle className="text-slate-400" size={32} />
+                        <div className={`p-4 ${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} rounded-full mb-4 transition-colors duration-300`}>
+                          <AlertTriangle className={textSecondary} size={32} />
                         </div>
-                        <p className="text-slate-300 font-medium mb-1">No defects found</p>
+                        <p className={`${textTertiary} font-medium mb-1 transition-colors duration-300`}>No defects found</p>
                         <p className="text-slate-500 text-sm">Report your first defect to get started</p>
                       </div>
                     </td>
                   </tr>
                 ) : (
                   filteredDefects.map((defect) => (
-                    <tr key={defect.id} className="hover:bg-slate-700 transition-colors group">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                    <tr key={defect.id} className={`${hoverRow} transition-colors group`}>
+                      <td className={`px-4 py-4 whitespace-nowrap text-sm ${textSecondary} transition-colors duration-300`}>
                         {new Date(defect.reportedDate).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{defect.materialCode}</td>
-                      <td className="px-6 py-4 text-sm text-slate-300 max-w-xs truncate">{defect.materialDescription}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{defect.defectType}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-white">{defect.quantity} {defect.unit}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                      <td className={`px-4 py-4 whitespace-nowrap text-sm font-medium ${textPrimary} transition-colors duration-300`}>{defect.materialCode}</td>
+                      <td className={`px-4 py-4 text-sm ${textTertiary} transition-colors duration-300`} title={defect.materialDescription}>
+                        <div className="max-w-[200px] truncate" title={defect.materialDescription}>
+                          {defect.materialDescription}
+                        </div>
+                      </td>
+                      <td className={`px-4 py-4 whitespace-nowrap text-sm ${textTertiary} transition-colors duration-300`}>{defect.defectType}</td>
+                      <td className={`px-4 py-4 whitespace-nowrap text-sm font-semibold ${textPrimary} transition-colors duration-300`}>{defect.quantity} {defect.unit}</td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap ${
                           defect.severity === 'critical' ? 'bg-red-900 text-red-300' :
                           defect.severity === 'high' ? 'bg-orange-900 text-orange-300' :
                           defect.severity === 'medium' ? 'bg-amber-900 text-amber-300' :
@@ -334,8 +354,8 @@ export default function DefectsPage() {
                           {defect.severity.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap ${
                           defect.status === 'resolved' ? 'bg-emerald-900 text-emerald-300' :
                           defect.status === 'in-progress' ? 'bg-blue-900 text-blue-300' :
                           'bg-amber-900 text-amber-300'
@@ -343,18 +363,20 @@ export default function DefectsPage() {
                           {defect.status.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{defect.reportedBy}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-300">{defect.reportedBy}</td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => handleEdit(defect)}
                             className="p-2 text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
+                            title="Edit defect"
                           >
                             <Edit size={18} />
                           </button>
                           <button
                             onClick={() => handleDeleteClick(defect.id)}
                             className="p-2 text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
+                            title="Delete defect"
                           >
                             <Trash2 size={18} />
                           </button>
@@ -370,9 +392,9 @@ export default function DefectsPage() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className={`fixed inset-0 ${theme === 'dark' ? 'bg-black/70' : 'bg-black/50'} backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-colors duration-300`}>
           <div className="premium-card p-8 w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar animate-slide-in">
-            <h2 className="text-2xl font-bold text-white mb-6">
+            <h2 className={`text-2xl font-bold ${textPrimary} mb-6 transition-colors duration-300`}>
               {editingDefect ? 'Edit Defect' : 'Report Defect'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">

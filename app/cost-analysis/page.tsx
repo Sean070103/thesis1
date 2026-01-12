@@ -7,9 +7,11 @@ import {
   getTransactionsFromSupabase, 
   getDefectsFromSupabase 
 } from '@/lib/supabase-storage';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Material, MaterialTransaction, Defect } from '@/types';
 
 export default function CostAnalysisPage() {
+  const { theme } = useTheme();
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | '1y' | 'all'>('30d');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -262,38 +264,57 @@ export default function CostAnalysisPage() {
     }
   };
 
+  // Theme-aware classes
+  const bgMain = theme === 'dark' ? 'bg-black' : 'bg-slate-50';
+  const bgHeader = theme === 'dark' ? 'bg-slate-900' : 'bg-white';
+  const borderColor = theme === 'dark' ? 'border-slate-800' : 'border-slate-200';
+  const textPrimary = theme === 'dark' ? 'text-white' : 'text-slate-900';
+  const textSecondary = theme === 'dark' ? 'text-slate-400' : 'text-slate-600';
+  const textTertiary = theme === 'dark' ? 'text-slate-300' : 'text-slate-700';
+  const textMuted = theme === 'dark' ? 'text-slate-500' : 'text-slate-500';
+  const bgCard = theme === 'dark' ? 'bg-slate-800' : 'bg-white';
+  const borderCard = theme === 'dark' ? 'border-slate-700' : 'border-slate-200';
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className={`min-h-screen ${bgMain} flex items-center justify-center transition-colors duration-300`}>
         <div className="text-center">
           <Loader2 className="animate-spin text-amber-500 mx-auto mb-4" size={48} />
-          <p className="text-slate-400">Loading cost analysis...</p>
+          <p className={textSecondary}>Loading cost analysis...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className={`min-h-screen ${bgMain} transition-colors duration-300`}>
       {/* Header */}
-      <div className="bg-slate-900 border-b border-slate-800 px-8 py-6">
+      <div className={`${bgHeader} border-b ${borderColor} px-8 py-6 transition-colors duration-300`}>
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-xl font-semibold text-white">Cost Analysis</h1>
-            <p className="text-sm text-slate-400 mt-1">Comprehensive cost tracking and financial insights</p>
+            <h1 className={`text-xl font-semibold ${textPrimary} transition-colors duration-300`}>Cost Analysis</h1>
+            <p className={`text-sm ${textSecondary} mt-1 transition-colors duration-300`}>Comprehensive cost tracking and financial insights</p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 ${
+                theme === 'dark' 
+                  ? 'text-white bg-slate-800 border border-slate-700 hover:bg-slate-700' 
+                  : 'text-slate-700 bg-slate-100 border border-slate-200 hover:bg-slate-200'
+              }`}
             >
               <RefreshCw className={isRefreshing ? 'animate-spin' : ''} size={18} />
               Refresh
             </button>
             <button
               onClick={handleExportReport}
-              className="px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${
+                theme === 'dark' 
+                  ? 'text-white bg-slate-800 border border-slate-700 hover:bg-slate-700' 
+                  : 'text-slate-700 bg-slate-100 border border-slate-200 hover:bg-slate-200'
+              }`}
             >
               <Download size={16} />
               Export PDF
@@ -304,11 +325,11 @@ export default function CostAnalysisPage() {
 
       <div className="p-8 space-y-6">
         {/* Date Range Filter */}
-        <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+        <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
-              <Calendar className="text-slate-400" size={18} />
-              <span className="text-sm font-medium text-slate-300">Date Range:</span>
+              <Calendar className={textSecondary} size={18} />
+              <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'} transition-colors duration-300`}>Date Range:</span>
             </div>
             {(['7d', '30d', '90d', '1y', 'all'] as const).map((range) => (
               <button
@@ -316,8 +337,12 @@ export default function CostAnalysisPage() {
                 onClick={() => setDateRange(range)}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                   dateRange === range
-                    ? 'bg-slate-700 text-white border border-slate-600'
-                    : 'bg-slate-900 text-slate-300 hover:bg-slate-700 border border-slate-700'
+                    ? theme === 'dark'
+                      ? `bg-slate-700 ${textPrimary} border border-slate-600`
+                      : `bg-amber-500 ${textPrimary} border border-amber-600`
+                    : theme === 'dark'
+                      ? `bg-slate-900 ${textTertiary} hover:bg-slate-700 border border-slate-700`
+                      : `bg-slate-100 ${textTertiary} hover:bg-slate-200 border border-slate-200`
                 }`}
               >
                 {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : range === '1y' ? '1 Year' : 'All Time'}
@@ -328,43 +353,43 @@ export default function CostAnalysisPage() {
 
         {/* Key Cost Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Total Inventory Value</p>
+              <p className={`text-xs font-medium ${textSecondary} uppercase tracking-wide transition-colors duration-300`}>Total Inventory Value</p>
               <Package className="text-blue-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-2">₱{totalInventoryValue.toLocaleString()}</p>
-            <p className="text-xs text-slate-500">Current stock value</p>
+            <p className={`text-3xl font-bold ${textPrimary} mb-2 transition-colors duration-300`}>₱{totalInventoryValue.toLocaleString()}</p>
+            <p className={`text-xs ${textMuted} transition-colors duration-300`}>Current stock value</p>
           </div>
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Receiving Costs</p>
+              <p className={`text-xs font-medium ${textSecondary} uppercase tracking-wide transition-colors duration-300`}>Receiving Costs</p>
               <TrendingUp className="text-emerald-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-2">₱{receivingCost.toLocaleString()}</p>
-            <p className="text-xs text-slate-500">In selected period</p>
+            <p className={`text-3xl font-bold ${textPrimary} mb-2 transition-colors duration-300`}>₱{receivingCost.toLocaleString()}</p>
+            <p className={`text-xs ${textMuted} transition-colors duration-300`}>In selected period</p>
           </div>
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Issuance Costs</p>
+              <p className={`text-xs font-medium ${textSecondary} uppercase tracking-wide transition-colors duration-300`}>Issuance Costs</p>
               <TrendingDown className="text-blue-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-2">₱{issuanceCost.toLocaleString()}</p>
-            <p className="text-xs text-slate-500">In selected period</p>
+            <p className={`text-3xl font-bold ${textPrimary} mb-2 transition-colors duration-300`}>₱{issuanceCost.toLocaleString()}</p>
+            <p className={`text-xs ${textMuted} transition-colors duration-300`}>In selected period</p>
           </div>
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Defect Losses</p>
+              <p className={`text-xs font-medium ${textSecondary} uppercase tracking-wide transition-colors duration-300`}>Defect Losses</p>
               <AlertTriangle className="text-rose-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-2">₱{defectCost.toLocaleString()}</p>
-            <p className="text-xs text-slate-500">Estimated value loss</p>
+            <p className={`text-3xl font-bold ${textPrimary} mb-2 transition-colors duration-300`}>₱{defectCost.toLocaleString()}</p>
+            <p className={`text-xs ${textMuted} transition-colors duration-300`}>Estimated value loss</p>
           </div>
         </div>
 
         {/* Cost Trends Chart */}
-        <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-          <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+        <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
+          <h3 className={`text-lg font-semibold ${textPrimary} mb-6 flex items-center gap-2 transition-colors duration-300`}>
             <TrendingUp className="text-slate-400" size={20} />
             Cost Trends Over Time
           </h3>
@@ -403,9 +428,9 @@ export default function CostAnalysisPage() {
 
         {/* Cost by Category */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <Calculator className="text-slate-400" size={20} />
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
+            <h3 className={`text-lg font-semibold ${textPrimary} mb-6 flex items-center gap-2 transition-colors duration-300`}>
+              <Calculator className={textSecondary} size={20} />
               Cost Distribution by Category
             </h3>
             <div className="space-y-4">
@@ -420,10 +445,10 @@ export default function CostAnalysisPage() {
                   return (
                     <div key={i} className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-white">{item.category}</span>
+                        <span className={`text-sm font-semibold ${textPrimary} transition-colors duration-300`}>{item.category}</span>
                         <div className="text-right">
-                          <span className="text-sm font-bold text-slate-300">₱{item.cost.toLocaleString()}</span>
-                          <span className="text-xs text-slate-500 ml-2">({item.count} units)</span>
+                          <span className={`text-sm font-bold ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'} transition-colors duration-300`}>₱{item.cost.toLocaleString()}</span>
+                          <span className={`text-xs ${textMuted} ml-2 transition-colors duration-300`}>({item.count} units)</span>
                         </div>
                       </div>
                       <div className="h-3 bg-slate-900 rounded-full overflow-hidden">
@@ -441,31 +466,31 @@ export default function CostAnalysisPage() {
           </div>
 
           {/* Cost Summary */}
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <Banknote className="text-slate-400" size={20} />
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
+            <h3 className={`text-lg font-semibold ${textPrimary} mb-6 flex items-center gap-2 transition-colors duration-300`}>
+              <Banknote className={textSecondary} size={20} />
               Cost Summary
             </h3>
             <div className="space-y-4">
-              <div className="bg-slate-900 rounded-lg p-5 border border-slate-700">
-                <p className="text-sm text-slate-400 mb-2">Net Cost Flow</p>
-                <p className="text-2xl font-bold text-white mb-1">
+              <div className={`${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} rounded-lg p-5 border ${borderCard} transition-colors duration-300`}>
+                <p className={`text-sm ${textSecondary} mb-2 transition-colors duration-300`}>Net Cost Flow</p>
+                <p className={`text-2xl font-bold ${textPrimary} mb-1 transition-colors duration-300`}>
                   ₱{(receivingCost - issuanceCost).toLocaleString()}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className={`text-xs ${textMuted} transition-colors duration-300`}>
                   {receivingCost > issuanceCost ? 'Net increase in inventory value' : 'Net decrease in inventory value'}
                 </p>
               </div>
-              <div className="bg-slate-900 rounded-lg p-5 border border-slate-700">
-                <p className="text-sm text-slate-400 mb-2">Cost Efficiency Ratio</p>
-                <p className="text-2xl font-bold text-white mb-1">
+              <div className={`${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} rounded-lg p-5 border ${borderCard} transition-colors duration-300`}>
+                <p className={`text-sm ${textSecondary} mb-2 transition-colors duration-300`}>Cost Efficiency Ratio</p>
+                <p className={`text-2xl font-bold ${textPrimary} mb-1 transition-colors duration-300`}>
                   {issuanceCost > 0 ? (receivingCost / issuanceCost).toFixed(2) : 'N/A'}
                 </p>
-                <p className="text-xs text-slate-500">Receiving to Issuance ratio</p>
+                <p className={`text-xs ${textMuted} transition-colors duration-300`}>Receiving to Issuance ratio</p>
               </div>
-              <div className="bg-slate-900 rounded-lg p-5 border border-slate-700">
-                <p className="text-sm text-slate-400 mb-2">Average Cost per Transaction</p>
-                <p className="text-2xl font-bold text-white mb-1">
+              <div className={`${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} rounded-lg p-5 border ${borderCard} transition-colors duration-300`}>
+                <p className={`text-sm ${textSecondary} mb-2 transition-colors duration-300`}>Average Cost per Transaction</p>
+                <p className={`text-2xl font-bold ${textPrimary} mb-1 transition-colors duration-300`}>
                   ₱{filteredTransactions.length > 0 
                     ? ((receivingCost + issuanceCost) / filteredTransactions.length).toLocaleString(undefined, { maximumFractionDigits: 2 })
                     : '0'}

@@ -11,6 +11,7 @@ import {
   deleteUserFromSupabase 
 } from '@/lib/supabase-storage';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import ConfirmModal from '@/components/ConfirmModal';
 import AlertModal from '@/components/AlertModal';
@@ -24,6 +25,7 @@ const defaultNotificationSettings = {
 };
 
 export default function SettingsPage() {
+  const { theme } = useTheme();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'data' | 'notifications' | 'users'>('data');
   const [isExporting, setIsExporting] = useState(false);
@@ -243,15 +245,26 @@ export default function SettingsPage() {
     ...(user?.role === 'admin' ? [{ id: 'users', label: 'User Management', icon: Users }] : []),
   ];
 
+  // Theme-aware classes
+  const bgMain = theme === 'dark' 
+    ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-black' 
+    : 'bg-gradient-to-br from-slate-50 via-white to-slate-100';
+  const borderColor = theme === 'dark' ? 'border-slate-800/50' : 'border-slate-200';
+  const textPrimary = theme === 'dark' ? 'text-white' : 'text-slate-900';
+  const textSecondary = theme === 'dark' ? 'text-slate-400' : 'text-slate-600';
+  const textMuted = theme === 'dark' ? 'text-slate-500' : 'text-slate-500';
+  const bgCard = theme === 'dark' ? 'bg-slate-800' : 'bg-white';
+  const borderCard = theme === 'dark' ? 'border-slate-700' : 'border-slate-200';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black">
+    <div className={`min-h-screen ${bgMain} transition-colors duration-300`}>
       {/* Header */}
-      <div className="border-b border-slate-800/50">
+      <div className={`border-b ${borderColor} transition-colors duration-300`}>
         <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-white">Settings</h1>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">Manage system preferences and configurations</p>
+              <h1 className={`text-xl sm:text-2xl font-bold ${textPrimary} transition-colors duration-300`}>Settings</h1>
+              <p className={`text-xs sm:text-sm ${textSecondary} mt-1 transition-colors duration-300`}>Manage system preferences and configurations</p>
             </div>
             <button
               onClick={handleSaveSettings}
@@ -277,7 +290,9 @@ export default function SettingsPage() {
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
                     ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
-                    : 'bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700/50 border border-slate-700/50'
+                    : theme === 'dark'
+                      ? 'bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700/50 border border-slate-700/50'
+                      : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200 border border-slate-200'
                 }`}
               >
                 <Icon size={18} />
@@ -319,14 +334,14 @@ export default function SettingsPage() {
             </div>
 
             {/* Database Status */}
-            <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+            <div className={`${bgCard} rounded-xl p-5 border ${borderCard} transition-colors duration-300`}>
               <div className="flex items-center gap-3">
                 <div className={`w-3 h-3 rounded-full ${isSupabaseConfigured() ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
                 <div>
-                  <p className="text-sm font-medium text-white">
+                  <p className={`text-sm font-medium ${textPrimary} transition-colors duration-300`}>
                     {isSupabaseConfigured() ? 'Supabase Connected' : 'Using Local Storage'}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className={`text-xs ${textMuted} transition-colors duration-300`}>
                     {isSupabaseConfigured() ? 'Data is synced to cloud database' : 'Data is stored locally in browser'}
                   </p>
                 </div>
@@ -366,17 +381,21 @@ export default function SettingsPage() {
               </div>
 
               {/* Import Data */}
-              <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+              <div className={`${bgCard} rounded-xl p-5 border ${borderCard} transition-colors duration-300`}>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2.5 bg-blue-500/10 rounded-lg">
                     <Upload className="text-blue-400" size={20} />
                   </div>
                   <div>
-                    <h3 className="text-base font-semibold text-white">Import Data</h3>
-                    <p className="text-xs text-slate-500">Restore from backup file</p>
+                    <h3 className={`text-base font-semibold ${textPrimary} transition-colors duration-300`}>Import Data</h3>
+                    <p className={`text-xs ${textMuted} transition-colors duration-300`}>Restore from backup file</p>
                   </div>
                 </div>
-                <label className="w-full px-4 py-2.5 bg-slate-700/50 text-white rounded-lg hover:bg-slate-600/50 transition-colors font-medium flex items-center justify-center gap-2 cursor-pointer border border-slate-600/50">
+                <label className={`w-full px-4 py-2.5 rounded-lg transition-colors font-medium flex items-center justify-center gap-2 cursor-pointer border ${
+                  theme === 'dark'
+                    ? 'bg-slate-700/50 text-white hover:bg-slate-600/50 border-slate-600/50'
+                    : 'bg-slate-200 text-slate-700 hover:bg-slate-300 border-slate-300'
+                }`}>
                   <input
                     type="file"
                     accept=".json"
@@ -458,15 +477,15 @@ export default function SettingsPage() {
             </div>
 
             {/* Email Notifications Settings */}
-            <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
+            <div className={`${bgCard} rounded-xl p-6 border ${borderCard} transition-colors duration-300`}>
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-amber-500/10 rounded-lg">
                     <Mail className="text-amber-400" size={20} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-white">Email Notifications</h3>
-                    <p className="text-sm text-slate-500">Receive alerts via email</p>
+                    <h3 className={`text-lg font-semibold ${textPrimary} transition-colors duration-300`}>Email Notifications</h3>
+                    <p className={`text-sm ${textMuted} transition-colors duration-300`}>Receive alerts via email</p>
                   </div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -588,14 +607,14 @@ export default function SettingsPage() {
         {activeTab === 'users' && user?.role === 'admin' && (
           <div className="space-y-6">
             {/* User List */}
-            <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
+            <div className={`${bgCard} rounded-xl p-6 border ${borderCard} transition-colors duration-300`}>
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2.5 bg-amber-500/10 rounded-lg">
                   <Users className="text-amber-400" size={20} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">Registered Users</h3>
-                  <p className="text-sm text-slate-500">View and manage user accounts</p>
+                  <h3 className={`text-lg font-semibold ${textPrimary} transition-colors duration-300`}>Registered Users</h3>
+                  <p className={`text-sm ${textMuted} transition-colors duration-300`}>View and manage user accounts</p>
                 </div>
               </div>
               <UserList />
@@ -678,12 +697,19 @@ function UserList() {
     );
   }
 
+  const { theme } = useTheme();
+  const textPrimary = theme === 'dark' ? 'text-white' : 'text-slate-900';
+  const textSecondary = theme === 'dark' ? 'text-slate-400' : 'text-slate-600';
+  const textMuted = theme === 'dark' ? 'text-slate-500' : 'text-slate-500';
+  const bgCard = theme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50';
+  const borderCard = theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200';
+
   if (users.length === 0) {
     return (
       <div className="text-center py-8">
-        <Users className="mx-auto text-slate-600 mb-3" size={32} />
-        <p className="text-sm text-slate-400">No users found</p>
-        <p className="text-xs text-slate-500 mt-1">Create a user account to get started</p>
+        <Users className={`mx-auto ${textMuted} mb-3 transition-colors duration-300`} size={32} />
+        <p className={`text-sm ${textSecondary} transition-colors duration-300`}>No users found</p>
+        <p className={`text-xs ${textMuted} mt-1 transition-colors duration-300`}>Create a user account to get started</p>
       </div>
     );
   }
@@ -713,14 +739,18 @@ function UserList() {
 
       <div className="space-y-3">
         {users.map((u) => (
-          <div key={u.id} className="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl border border-slate-700/50">
+          <div key={u.id} className={`flex items-center justify-between p-4 ${bgCard} rounded-xl border ${borderCard} transition-colors duration-300`}>
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 bg-gradient-to-br from-slate-700 to-slate-800 rounded-full flex items-center justify-center shrink-0 border border-slate-600/50">
-                <span className="text-white font-medium">{u.name?.charAt(0)?.toUpperCase() || '?'}</span>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border transition-colors duration-300 ${
+                theme === 'dark' 
+                  ? 'bg-gradient-to-br from-slate-700 to-slate-800 border-slate-600/50' 
+                  : 'bg-gradient-to-br from-slate-200 to-slate-300 border-slate-300'
+              }`}>
+                <span className={`${textPrimary} font-medium transition-colors duration-300`}>{u.name?.charAt(0)?.toUpperCase() || '?'}</span>
               </div>
               <div className="min-w-0">
-                <p className="text-white font-medium truncate">{u.name}</p>
-                <p className="text-slate-500 text-sm truncate">{u.email}</p>
+                <p className={`${textPrimary} font-medium truncate transition-colors duration-300`}>{u.name}</p>
+                <p className={`${textMuted} text-sm truncate transition-colors duration-300`}>{u.email}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 shrink-0">

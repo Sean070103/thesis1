@@ -8,11 +8,13 @@ import {
   deleteMaterialFromSupabase,
   generateId 
 } from '@/lib/supabase-storage';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Material } from '@/types';
 import ConfirmModal from '@/components/ConfirmModal';
 import AlertModal from '@/components/AlertModal';
 
 export default function MaterialsPage() {
+  const { theme } = useTheme();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -147,8 +149,22 @@ export default function MaterialsPage() {
     );
   });
 
+  // Theme-aware classes
+  const bgMain = theme === 'dark' ? 'bg-black' : 'bg-slate-50';
+  const bgCard = theme === 'dark' ? 'bg-slate-800' : 'bg-white';
+  const bgHeader = theme === 'dark' ? 'bg-slate-900' : 'bg-white';
+  const borderColor = theme === 'dark' ? 'border-slate-800' : 'border-slate-200';
+  const borderCard = theme === 'dark' ? 'border-slate-700' : 'border-slate-200';
+  const textPrimary = theme === 'dark' ? 'text-white' : 'text-slate-900';
+  const textSecondary = theme === 'dark' ? 'text-slate-400' : 'text-slate-600';
+  const textMuted = theme === 'dark' ? 'text-slate-500' : 'text-slate-500';
+  const textTertiary = theme === 'dark' ? 'text-slate-300' : 'text-slate-700';
+  const hoverRow = theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-50';
+  const bgTableHeader = theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100';
+  const divideColor = theme === 'dark' ? 'divide-slate-700' : 'divide-slate-200';
+
   return (
-    <div className="min-h-screen bg-black">
+    <div className={`min-h-screen ${bgMain} transition-colors duration-300`}>
       {/* Delete Confirmation Modal */}
       <ConfirmModal
         isOpen={deleteModal.isOpen}
@@ -170,11 +186,11 @@ export default function MaterialsPage() {
         type={alertModal.type}
       />
       {/* Header */}
-      <div className="bg-slate-900 border-b border-slate-800 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <div className={`${bgHeader} border-b ${borderColor} px-4 sm:px-6 lg:px-8 py-4 sm:py-6 transition-colors duration-300`}>
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-lg sm:text-xl font-semibold text-white">Material Records</h1>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">Manage inventory data synchronized with SAP</p>
+            <h1 className={`text-lg sm:text-xl font-semibold ${textPrimary} transition-colors duration-300`}>Material Records</h1>
+            <p className={`text-xs sm:text-sm ${textSecondary} mt-1 transition-colors duration-300`}>Manage inventory data synchronized with SAP</p>
           </div>
           <div className="flex gap-3">
             <button
@@ -182,7 +198,7 @@ export default function MaterialsPage() {
                 resetForm();
                 setIsModalOpen(true);
               }}
-              className="px-3 sm:px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
+              className={`px-3 sm:px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-amber-600 to-orange-600 rounded-xl hover:from-amber-500 hover:to-orange-500 transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2`}
             >
               <Plus size={18} />
               <span className="hidden sm:inline">Add Material</span>
@@ -193,35 +209,35 @@ export default function MaterialsPage() {
       </div>
 
       <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
-        <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+        <div className={`${bgCard} rounded-lg border ${borderCard} p-4 transition-colors duration-300`}>
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+            <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 ${textSecondary} transition-colors duration-300`} size={20} />
             <input
               type="text"
               placeholder="Search materials by code, description, or category..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border border-slate-700 rounded-lg focus:ring-2 focus:ring-slate-600 focus:border-slate-600 transition-all bg-slate-900 text-white placeholder-slate-500"
+              className={`w-full pl-12 pr-4 py-3 border ${borderCard} rounded-xl focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all ${theme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50'} ${textPrimary} placeholder-slate-500 backdrop-blur-sm transition-colors duration-300`}
             />
           </div>
         </div>
 
         {/* Loading State */}
         {isLoading ? (
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-12">
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-12 transition-colors duration-300`}>
             <div className="flex flex-col items-center">
               <Loader2 className="animate-spin text-amber-500 mb-4" size={32} />
-              <p className="text-slate-400">Loading materials...</p>
+              <p className={textSecondary}>Loading materials...</p>
             </div>
           </div>
         ) : filteredMaterials.length === 0 ? (
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-12">
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-12 transition-colors duration-300`}>
             <div className="flex flex-col items-center">
-              <div className="p-4 bg-slate-900 rounded-full mb-4">
-                <Package className="text-slate-400" size={32} />
+              <div className={`p-4 ${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} rounded-full mb-4 transition-colors duration-300`}>
+                <Package className={textSecondary} size={32} />
               </div>
-              <p className="text-slate-300 font-medium mb-1">No materials found</p>
-              <p className="text-slate-500 text-sm">Add your first material or load sample data</p>
+              <p className={`${textTertiary} font-medium mb-1 transition-colors duration-300`}>No materials found</p>
+              <p className={`${textMuted} text-sm transition-colors duration-300`}>Add your first material or load sample data</p>
             </div>
           </div>
         ) : (
@@ -229,47 +245,47 @@ export default function MaterialsPage() {
             {/* Mobile Card Layout */}
             <div className="lg:hidden space-y-4">
               {filteredMaterials.map((material) => (
-                <div key={material.id} className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+                <div key={material.id} className={`${bgCard} rounded-lg border ${borderCard} p-4 transition-colors duration-300`}>
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <p className="text-sm font-medium text-white">{material.materialCode}</p>
-                      <p className="text-xs text-slate-400 mt-1 line-clamp-2">{material.description}</p>
+                      <p className={`text-sm font-medium ${textPrimary} transition-colors duration-300`}>{material.materialCode}</p>
+                      <p className={`text-xs ${textSecondary} mt-1 line-clamp-2 transition-colors duration-300`}>{material.description}</p>
                     </div>
                     <div className="flex items-center space-x-1 ml-2">
                       <button
                         onClick={() => handleEdit(material)}
-                        className="p-2 text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
+                        className={`p-2 text-blue-400 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
                       >
                         <Edit size={16} />
                       </button>
                       <button
                         onClick={() => handleDeleteClick(material.id)}
-                        className="p-2 text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
+                        className={`p-2 text-red-400 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
                       >
                         <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mb-3">
-                    <span className="px-2 py-1 text-xs font-medium bg-slate-900 text-slate-300 rounded-full">
+                    <span className={`px-2 py-1 text-xs font-medium ${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} ${textTertiary} rounded-full transition-colors duration-300`}>
                       {material.category || 'N/A'}
                     </span>
-                    <span className="px-2 py-1 text-xs bg-slate-900 text-slate-400 rounded-full">
+                    <span className={`px-2 py-1 text-xs ${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} ${textSecondary} rounded-full transition-colors duration-300`}>
                       {material.location || 'N/A'}
                     </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 pt-3 border-t border-slate-700">
+                  <div className={`grid grid-cols-3 gap-3 pt-3 border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'} transition-colors duration-300`}>
                     <div>
-                      <p className="text-xs text-slate-500">Quantity</p>
-                      <p className="text-sm font-semibold text-white">{material.quantity}</p>
+                      <p className={`text-xs ${textMuted} transition-colors duration-300`}>Quantity</p>
+                      <p className={`text-sm font-semibold ${textPrimary} transition-colors duration-300`}>{material.quantity}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500">Unit</p>
-                      <p className="text-sm text-slate-300">{material.unit || 'N/A'}</p>
+                      <p className={`text-xs ${textMuted} transition-colors duration-300`}>Unit</p>
+                      <p className={`text-sm ${textTertiary} transition-colors duration-300`}>{material.unit || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500">SAP Qty</p>
-                      <p className="text-sm text-slate-300">{material.sapQuantity ?? 'N/A'}</p>
+                      <p className={`text-xs ${textMuted} transition-colors duration-300`}>SAP Qty</p>
+                      <p className={`text-sm ${textTertiary} transition-colors duration-300`}>{material.sapQuantity ?? 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -277,46 +293,46 @@ export default function MaterialsPage() {
             </div>
 
             {/* Desktop Table Layout */}
-            <div className="hidden lg:block bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+            <div className={`hidden lg:block ${bgCard} rounded-lg border ${borderCard} overflow-hidden transition-colors duration-300`}>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-slate-900">
+                  <thead className={bgTableHeader}>
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Material Code</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Description</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Category</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Quantity</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Unit</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider hidden xl:table-cell">Location</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider hidden xl:table-cell">SAP Quantity</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Actions</th>
+                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Material Code</th>
+                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Description</th>
+                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Category</th>
+                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Quantity</th>
+                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Unit</th>
+                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider hidden xl:table-cell transition-colors duration-300`}>Location</th>
+                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider hidden xl:table-cell transition-colors duration-300`}>SAP Quantity</th>
+                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-slate-800 divide-y divide-slate-700">
+                  <tbody className={`${bgCard} ${divideColor} transition-colors duration-300`}>
                     {filteredMaterials.map((material) => (
-                      <tr key={material.id} className="hover:bg-slate-700 transition-colors group">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{material.materialCode}</td>
-                        <td className="px-6 py-4 text-sm text-slate-300 max-w-xs truncate">{material.description}</td>
+                      <tr key={material.id} className={`${hoverRow} transition-colors group`}>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${textPrimary} transition-colors duration-300`}>{material.materialCode}</td>
+                        <td className={`px-6 py-4 text-sm ${textTertiary} max-w-xs truncate transition-colors duration-300`} title={material.description}>{material.description}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-3 py-1 text-xs font-medium bg-slate-900 text-slate-300 rounded-full">
+                          <span className={`px-3 py-1 text-xs font-medium ${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} ${textTertiary} rounded-full transition-colors duration-300`}>
                             {material.category || 'N/A'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-white">{material.quantity}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">{material.unit || 'N/A'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400 hidden xl:table-cell">{material.location || 'N/A'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400 hidden xl:table-cell">{material.sapQuantity ?? 'N/A'}</td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${textPrimary} transition-colors duration-300`}>{material.quantity}</td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${textSecondary} transition-colors duration-300`}>{material.unit || 'N/A'}</td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${textSecondary} hidden xl:table-cell transition-colors duration-300`}>{material.location || 'N/A'}</td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${textSecondary} hidden xl:table-cell transition-colors duration-300`}>{material.sapQuantity ?? 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center space-x-2">
                             <button
                               onClick={() => handleEdit(material)}
-                              className="p-2 text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
+                              className={`p-2 text-blue-400 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
                             >
                               <Edit size={18} />
                             </button>
                             <button
                               onClick={() => handleDeleteClick(material.id)}
-                              className="p-2 text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
+                              className={`p-2 text-red-400 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
                             >
                               <Trash2 size={18} />
                             </button>
@@ -333,9 +349,9 @@ export default function MaterialsPage() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className={`fixed inset-0 ${theme === 'dark' ? 'bg-black/70' : 'bg-black/50'} backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-colors duration-300`}>
           <div className="premium-card p-8 w-full max-w-md animate-slide-in">
-            <h2 className="text-2xl font-bold text-white mb-6">
+            <h2 className={`text-2xl font-bold ${textPrimary} mb-6 transition-colors duration-300`}>
               {editingMaterial ? 'Edit Material' : 'Add Material'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">

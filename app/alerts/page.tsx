@@ -13,6 +13,7 @@ import {
   acknowledgeAllAlertsInSupabase,
   generateId 
 } from '@/lib/supabase-storage';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Alert, Material } from '@/types';
 import ConfirmModal from '@/components/ConfirmModal';
 
@@ -71,6 +72,7 @@ function Toast({
 }
 
 export default function AlertsPage() {
+  const { theme } = useTheme();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [filter, setFilter] = useState<'all' | 'unacknowledged' | 'acknowledged'>('all');
@@ -435,8 +437,19 @@ export default function AlertsPage() {
 
   const modalConfig = getModalConfig();
 
+  // Theme-aware classes
+  const bgMain = theme === 'dark' 
+    ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-black' 
+    : 'bg-gradient-to-br from-slate-50 via-white to-slate-100';
+  const borderColor = theme === 'dark' ? 'border-slate-800/50' : 'border-slate-200';
+  const textPrimary = theme === 'dark' ? 'text-white' : 'text-slate-900';
+  const textSecondary = theme === 'dark' ? 'text-slate-400' : 'text-slate-600';
+  const textMuted = theme === 'dark' ? 'text-slate-500' : 'text-slate-500';
+  const bgCard = theme === 'dark' ? 'bg-slate-800/50' : 'bg-white';
+  const borderCard = theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black">
+    <div className={`min-h-screen ${bgMain} transition-colors duration-300`}>
       {/* Toast Notification */}
       {toast && (
         <Toast 
@@ -459,12 +472,12 @@ export default function AlertsPage() {
       />
 
       {/* Header */}
-      <div className="border-b border-slate-800/50">
+      <div className={`border-b ${borderColor} transition-colors duration-300`}>
         <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Alerts</h1>
+                <h1 className={`text-xl sm:text-2xl font-bold ${textPrimary} tracking-tight transition-colors duration-300`}>Alerts</h1>
                 {criticalCount > 0 && (
                   <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-500/20 border border-red-500/30 rounded-full animate-pulse">
                     <div className="w-2 h-2 bg-red-400 rounded-full" />
@@ -472,13 +485,17 @@ export default function AlertsPage() {
                   </div>
                 )}
               </div>
-              <p className="text-xs sm:text-sm text-slate-400">Monitor SAP mismatches and low stock warnings</p>
+              <p className={`text-xs sm:text-sm ${textSecondary} transition-colors duration-300`}>Monitor SAP mismatches and low stock warnings</p>
             </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={handleRefresh}
                 disabled={isRefreshing}
-                className="px-4 py-2.5 bg-slate-800/50 hover:bg-slate-700/50 rounded-xl border border-slate-700/50 text-slate-300 font-medium text-sm transition-all flex items-center gap-2 disabled:opacity-50"
+                className={`px-4 py-2.5 rounded-xl border font-medium text-sm transition-all flex items-center gap-2 disabled:opacity-50 ${
+                  theme === 'dark' 
+                    ? 'bg-slate-800/50 hover:bg-slate-700/50 border-slate-700/50 text-slate-300' 
+                    : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
+                }`}
               >
                 <RefreshCw className={`${isRefreshing ? 'animate-spin' : ''}`} size={16} />
                 Refresh
@@ -499,48 +516,48 @@ export default function AlertsPage() {
       <div className="p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+          <div className={`${bgCard} rounded-xl p-5 border ${borderCard} transition-colors duration-300`}>
             <div className="flex items-center justify-between mb-3">
               <div className="p-2.5 bg-red-500/10 rounded-lg border border-red-500/20">
                 <Package size={18} className="text-red-400" />
               </div>
               <span className="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-1 rounded-lg">MISMATCH</span>
             </div>
-            <p className="text-2xl font-bold text-white">{mismatchCount}</p>
-            <p className="text-xs text-slate-500 mt-1">SAP discrepancies</p>
+            <p className={`text-2xl font-bold ${textPrimary} transition-colors duration-300`}>{mismatchCount}</p>
+            <p className={`text-xs ${textMuted} mt-1 transition-colors duration-300`}>SAP discrepancies</p>
           </div>
           
-          <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+          <div className={`${bgCard} rounded-xl p-5 border ${borderCard} transition-colors duration-300`}>
             <div className="flex items-center justify-between mb-3">
               <div className="p-2.5 bg-amber-500/10 rounded-lg border border-amber-500/20">
                 <AlertTriangle size={18} className="text-amber-400" />
               </div>
               <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-lg">LOW STOCK</span>
             </div>
-            <p className="text-2xl font-bold text-white">{lowStockCount}</p>
-            <p className="text-xs text-slate-500 mt-1">items need restock</p>
+            <p className={`text-2xl font-bold ${textPrimary} transition-colors duration-300`}>{lowStockCount}</p>
+            <p className={`text-xs ${textMuted} mt-1 transition-colors duration-300`}>items need restock</p>
           </div>
           
-          <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+          <div className={`${bgCard} rounded-xl p-5 border ${borderCard} transition-colors duration-300`}>
             <div className="flex items-center justify-between mb-3">
               <div className="p-2.5 bg-blue-500/10 rounded-lg border border-blue-500/20">
                 <Bell size={18} className="text-blue-400" />
               </div>
               <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-lg">ACTIVE</span>
             </div>
-            <p className="text-2xl font-bold text-white">{unacknowledgedCount}</p>
-            <p className="text-xs text-slate-500 mt-1">unacknowledged</p>
+            <p className={`text-2xl font-bold ${textPrimary} transition-colors duration-300`}>{unacknowledgedCount}</p>
+            <p className={`text-xs ${textMuted} mt-1 transition-colors duration-300`}>unacknowledged</p>
           </div>
           
-          <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+          <div className={`${bgCard} rounded-xl p-5 border ${borderCard} transition-colors duration-300`}>
             <div className="flex items-center justify-between mb-3">
               <div className="p-2.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
                 <CheckCircle size={18} className="text-emerald-400" />
               </div>
               <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg">RESOLVED</span>
             </div>
-            <p className="text-2xl font-bold text-white">{acknowledgedCount}</p>
-            <p className="text-xs text-slate-500 mt-1">acknowledged</p>
+            <p className={`text-2xl font-bold ${textPrimary} transition-colors duration-300`}>{acknowledgedCount}</p>
+            <p className={`text-xs ${textMuted} mt-1 transition-colors duration-300`}>acknowledged</p>
           </div>
         </div>
 

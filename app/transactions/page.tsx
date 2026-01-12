@@ -16,6 +16,7 @@ import {
   updateTransactionInSupabase,
   generateId 
 } from '@/lib/supabase-storage';
+import { useTheme } from '@/contexts/ThemeContext';
 import { MaterialTransaction, Material } from '@/types';
 import ConfirmModal from '@/components/ConfirmModal';
 import AlertModal from '@/components/AlertModal';
@@ -268,6 +269,7 @@ const sendTransactionEmail = async (transaction: MaterialTransaction) => {
 // MAIN COMPONENT
 // ============================================
 export default function TransactionsPage() {
+  const { theme } = useTheme();
   const [transactions, setTransactions] = useState<MaterialTransaction[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -694,32 +696,54 @@ export default function TransactionsPage() {
     subLabel: m.description,
   }));
 
+  // Theme-aware classes
+  const bgMain = theme === 'dark' 
+    ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-black' 
+    : 'bg-gradient-to-br from-slate-50 via-white to-slate-100';
+  const bgHeader = theme === 'dark'
+    ? 'bg-gradient-to-r from-slate-900/80 via-slate-900/60 to-slate-900/80'
+    : 'bg-gradient-to-r from-white/90 via-white/80 to-white/90';
+  const borderColor = theme === 'dark' ? 'border-slate-800/50' : 'border-slate-200';
+  const textPrimary = theme === 'dark' ? 'text-white' : 'text-slate-900';
+  const textSecondary = theme === 'dark' ? 'text-slate-400' : 'text-slate-600';
+  const textMuted = theme === 'dark' ? 'text-slate-500' : 'text-slate-500';
+  const bgCard = theme === 'dark' ? 'bg-slate-800' : 'bg-white';
+  const borderCard = theme === 'dark' ? 'border-slate-700' : 'border-slate-200';
+  const bgTableHeader = theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100';
+  const textTertiary = theme === 'dark' ? 'text-slate-300' : 'text-slate-700';
+  const hoverRow = theme === 'dark' ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50';
+  const divideColor = theme === 'dark' ? 'divide-slate-700' : 'divide-slate-200';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black">
+    <div className={`min-h-screen ${bgMain} transition-colors duration-300`}>
       {/* Ambient background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/3 left-1/3 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl" />
+        <div className={`absolute top-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl ${theme === 'dark' ? 'bg-emerald-500/5' : 'bg-emerald-500/10'}`} />
+        <div className={`absolute bottom-1/3 left-1/3 w-80 h-80 rounded-full blur-3xl ${theme === 'dark' ? 'bg-blue-500/5' : 'bg-blue-500/10'}`} />
       </div>
 
       {/* Header */}
-      <div className="relative border-b border-slate-800/50">
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/60 to-slate-900/80 backdrop-blur-xl" />
+      <div className={`relative border-b ${borderColor} transition-colors duration-300`}>
+        <div className={`absolute inset-0 ${bgHeader} backdrop-blur-xl`} />
         <div className="relative px-8 py-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">Material Transactions</h1>
-              <p className="text-sm text-slate-400 mt-1">Record and manage material receiving and issuance activities</p>
+              <h1 className={`text-2xl font-bold ${textPrimary} tracking-tight transition-colors duration-300`}>Material Transactions</h1>
+              <p className={`text-sm ${textSecondary} mt-1 transition-colors duration-300`}>Record and manage material receiving and issuance activities</p>
             </div>
             <div className="flex items-center gap-3">
               {/* Export Button */}
               <button
                 onClick={exportToPDF}
-                className="group px-4 py-2.5 bg-slate-800/50 hover:bg-slate-700/50 rounded-xl border border-slate-700/30 hover:border-slate-600/50 transition-all duration-300 flex items-center gap-2"
+                className={`group px-4 py-2.5 rounded-xl border transition-all duration-300 flex items-center gap-2 ${
+                  theme === 'dark' 
+                    ? 'bg-slate-800/50 hover:bg-slate-700/50 border-slate-700/30 hover:border-slate-600/50' 
+                    : 'bg-slate-100 hover:bg-slate-200 border-slate-200 hover:border-slate-300'
+                }`}
                 title="Export to PDF"
               >
                 <Download size={16} className="text-red-400" />
-                <span className="text-sm font-medium text-slate-300">Export PDF</span>
+                <span className={`text-sm font-medium ${textTertiary} transition-colors duration-300`}>Export PDF</span>
               </button>
               
               <button
@@ -751,8 +775,8 @@ export default function TransactionsPage() {
               </div>
               <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg">RECEIVING</span>
             </div>
-            <p className="text-2xl font-bold text-white">{stats.totalReceiving}</p>
-            <p className="text-xs text-slate-500 mt-1">{stats.receivingQty.toLocaleString()} units total</p>
+            <p className={`text-2xl font-bold ${textPrimary} transition-colors duration-300`}>{stats.totalReceiving}</p>
+            <p className={`text-xs ${textSecondary} mt-1 transition-colors duration-300`}>{stats.receivingQty.toLocaleString()} units total</p>
           </div>
           
           <div className="premium-card p-5">
@@ -762,8 +786,8 @@ export default function TransactionsPage() {
               </div>
               <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-lg">ISSUANCE</span>
             </div>
-            <p className="text-2xl font-bold text-white">{stats.totalIssuance}</p>
-            <p className="text-xs text-slate-500 mt-1">{stats.issuanceQty.toLocaleString()} units total</p>
+            <p className={`text-2xl font-bold ${textPrimary} transition-colors duration-300`}>{stats.totalIssuance}</p>
+            <p className={`text-xs ${textSecondary} mt-1 transition-colors duration-300`}>{stats.issuanceQty.toLocaleString()} units total</p>
           </div>
           
           <div className="premium-card p-5">
@@ -773,8 +797,8 @@ export default function TransactionsPage() {
               </div>
               <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-lg">TODAY</span>
             </div>
-            <p className="text-2xl font-bold text-white">{stats.todayCount}</p>
-            <p className="text-xs text-slate-500 mt-1">transactions today</p>
+            <p className={`text-2xl font-bold ${textPrimary} transition-colors duration-300`}>{stats.todayCount}</p>
+            <p className={`text-xs ${textSecondary} mt-1 transition-colors duration-300`}>transactions today</p>
           </div>
           
           <div className="premium-card p-5">
@@ -784,8 +808,8 @@ export default function TransactionsPage() {
               </div>
               <span className="text-[10px] font-bold text-purple-400 bg-purple-500/10 px-2 py-1 rounded-lg">TOP MATERIAL</span>
             </div>
-            <p className="text-lg font-bold text-white truncate" title={stats.mostActiveMaterial}>{stats.mostActiveMaterial}</p>
-            <p className="text-xs text-slate-500 mt-1">{stats.mostActiveCount} transactions</p>
+            <p className={`text-lg font-bold ${textPrimary} truncate transition-colors duration-300`} title={stats.mostActiveMaterial}>{stats.mostActiveMaterial}</p>
+            <p className={`text-xs ${textSecondary} mt-1 transition-colors duration-300`}>{stats.mostActiveCount} transactions</p>
           </div>
         </div>
 
@@ -793,7 +817,7 @@ export default function TransactionsPage() {
         <div className="premium-card p-4 space-y-4">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500" size={20} />
+            <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 ${textSecondary} transition-colors duration-300`} size={20} />
             <input
               type="text"
               placeholder="Search by material, reference, user..."
@@ -802,15 +826,15 @@ export default function TransactionsPage() {
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-12 pr-4 py-3.5 rounded-xl text-white placeholder-slate-500 bg-slate-900/50 border border-slate-700/50 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all duration-300"
+              className={`w-full pl-12 pr-4 py-3.5 rounded-xl ${textPrimary} placeholder-slate-500 ${theme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50'} border ${borderCard} focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all duration-300`}
             />
           </div>
 
           {/* Filter Row */}
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <Filter size={16} className="text-slate-500" />
-              <span className="text-sm text-slate-400">Type:</span>
+              <Filter size={16} className={textSecondary} />
+              <span className={`text-sm ${textSecondary} transition-colors duration-300`}>Type:</span>
               <div className="flex gap-1">
                 {['all', 'receiving', 'issuance'].map((type) => (
                   <button
@@ -858,10 +882,10 @@ export default function TransactionsPage() {
         <div className="premium-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-700/50">
+              <thead className={bgTableHeader}>
+                <tr className={`border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'} transition-colors duration-300`}>
                   <th 
-                    className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-amber-400 transition-colors"
+                    className={`px-6 py-4 text-left text-xs font-bold ${textSecondary} uppercase tracking-wider cursor-pointer hover:text-amber-400 transition-colors duration-300`}
                     onClick={() => handleSort('date')}
                   >
                     <div className="flex items-center gap-2">
@@ -869,9 +893,9 @@ export default function TransactionsPage() {
                       {sortBy === 'date' && (sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                     </div>
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Type</th>
+                  <th className={`px-6 py-4 text-left text-xs font-bold ${textSecondary} uppercase tracking-wider transition-colors duration-300`}>Type</th>
                   <th 
-                    className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-amber-400 transition-colors"
+                    className={`px-6 py-4 text-left text-xs font-bold ${textSecondary} uppercase tracking-wider cursor-pointer hover:text-amber-400 transition-colors duration-300`}
                     onClick={() => handleSort('materialCode')}
                   >
                     <div className="flex items-center gap-2">
@@ -879,9 +903,9 @@ export default function TransactionsPage() {
                       {sortBy === 'materialCode' && (sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                     </div>
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Description</th>
+                  <th className={`px-6 py-4 text-left text-xs font-bold ${textSecondary} uppercase tracking-wider transition-colors duration-300`}>Description</th>
                   <th 
-                    className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-amber-400 transition-colors"
+                    className={`px-6 py-4 text-left text-xs font-bold ${textSecondary} uppercase tracking-wider cursor-pointer hover:text-amber-400 transition-colors duration-300`}
                     onClick={() => handleSort('quantity')}
                   >
                     <div className="flex items-center gap-2">
@@ -889,12 +913,12 @@ export default function TransactionsPage() {
                       {sortBy === 'quantity' && (sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                     </div>
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">User</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Reference</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</th>
+                  <th className={`px-6 py-4 text-left text-xs font-bold ${textSecondary} uppercase tracking-wider transition-colors duration-300`}>User</th>
+                  <th className={`px-6 py-4 text-left text-xs font-bold ${textSecondary} uppercase tracking-wider transition-colors duration-300`}>Reference</th>
+                  <th className={`px-6 py-4 text-right text-xs font-bold ${textSecondary} uppercase tracking-wider transition-colors duration-300`}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/50">
+              <tbody className={`${divideColor} transition-colors duration-300`}>
                 {isLoading ? (
                   <tr>
                     <td colSpan={8} className="px-6 py-16 text-center">
@@ -903,7 +927,7 @@ export default function TransactionsPage() {
                           <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full" />
                           <Loader2 className="relative animate-spin text-amber-500 mb-4" size={40} />
                         </div>
-                        <p className="text-slate-400 font-medium">Loading transactions...</p>
+                        <p className={`${textSecondary} font-medium transition-colors duration-300`}>Loading transactions...</p>
                       </div>
                     </td>
                   </tr>
@@ -911,11 +935,11 @@ export default function TransactionsPage() {
                   <tr>
                     <td colSpan={8} className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center">
-                        <div className="p-4 bg-slate-800/50 rounded-2xl mb-4 border border-slate-700/50">
-                          <FileText className="text-slate-500" size={32} />
+                        <div className={`p-4 ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-100'} rounded-2xl mb-4 border ${borderCard} transition-colors duration-300`}>
+                          <FileText className={textMuted} size={32} />
                         </div>
-                        <p className="text-white font-semibold mb-1">No transactions found</p>
-                        <p className="text-slate-500 text-sm">Try adjusting your filters or create a new transaction</p>
+                        <p className={`${textPrimary} font-semibold mb-1 transition-colors duration-300`}>No transactions found</p>
+                        <p className={`${textMuted} text-sm transition-colors duration-300`}>Try adjusting your filters or create a new transaction</p>
                       </div>
                     </td>
                   </tr>
@@ -923,12 +947,12 @@ export default function TransactionsPage() {
                   paginatedTransactions.map((transaction, index) => (
                     <tr 
                       key={transaction.id} 
-                      className="hover:bg-slate-800/30 transition-colors group cursor-pointer"
+                      className={`${hoverRow} transition-colors group cursor-pointer`}
                       onClick={() => openViewModal(transaction)}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${textSecondary} transition-colors duration-300`}>
                         {new Date(transaction.date).toLocaleDateString()}
-                        <span className="block text-xs text-slate-500">
+                        <span className={`block text-xs ${textMuted} transition-colors duration-300`}>
                           {new Date(transaction.date).toLocaleTimeString()}
                         </span>
                       </td>
@@ -945,8 +969,8 @@ export default function TransactionsPage() {
                           )}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-white">{transaction.materialCode}</td>
-                      <td className="px-6 py-4 text-sm text-slate-300 max-w-xs truncate">{transaction.materialDescription}</td>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${textPrimary} transition-colors duration-300`}>{transaction.materialCode}</td>
+                      <td className={`px-6 py-4 text-sm ${textTertiary} max-w-xs truncate transition-colors duration-300`} title={transaction.materialDescription}>{transaction.materialDescription}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`text-sm font-bold ${
                           transaction.transactionType === 'receiving' ? 'text-emerald-400' : 'text-blue-400'
@@ -954,8 +978,8 @@ export default function TransactionsPage() {
                           {transaction.transactionType === 'receiving' ? '+' : '-'}{transaction.quantity} {transaction.unit}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{transaction.user}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">{transaction.reference}</td>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${textTertiary} transition-colors duration-300`}>{transaction.user}</td>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${textMuted} font-mono transition-colors duration-300`}>{transaction.reference}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
@@ -963,17 +987,17 @@ export default function TransactionsPage() {
                               e.stopPropagation();
                               openViewModal(transaction);
                             }}
-                            className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+                            className={`p-2 ${theme === 'dark' ? 'hover:bg-slate-700/50' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
                             title="View Details"
                           >
-                            <Eye size={16} className="text-slate-400 hover:text-white" />
+                            <Eye size={16} className={`${textSecondary} ${theme === 'dark' ? 'hover:text-white' : 'hover:text-slate-900'} transition-colors`} />
                           </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               openEditModal(transaction);
                             }}
-                            className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+                            className={`p-2 ${theme === 'dark' ? 'hover:bg-slate-700/50' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
                             title="Edit"
                           >
                             <Edit3 size={16} className="text-slate-400 hover:text-amber-400" />

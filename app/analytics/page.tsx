@@ -8,9 +8,11 @@ import {
   getDefectsFromSupabase, 
   getAlertsFromSupabase 
 } from '@/lib/supabase-storage';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Material, MaterialTransaction, Defect, Alert } from '@/types';
 
 export default function AnalyticsPage() {
+  const { theme } = useTheme();
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | '1y' | 'all'>('30d');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
@@ -266,25 +268,35 @@ export default function AnalyticsPage() {
     }
   };
 
+  // Theme-aware classes
+  const bgMain = theme === 'dark' ? 'bg-black' : 'bg-slate-50';
+  const bgHeader = theme === 'dark' ? 'bg-slate-900' : 'bg-white';
+  const borderColor = theme === 'dark' ? 'border-slate-800' : 'border-slate-200';
+  const textPrimary = theme === 'dark' ? 'text-white' : 'text-slate-900';
+  const textSecondary = theme === 'dark' ? 'text-slate-400' : 'text-slate-600';
+  const textMuted = theme === 'dark' ? 'text-slate-500' : 'text-slate-500';
+  const bgCard = theme === 'dark' ? 'bg-slate-800' : 'bg-white';
+  const borderCard = theme === 'dark' ? 'border-slate-700' : 'border-slate-200';
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className={`min-h-screen ${bgMain} flex items-center justify-center transition-colors duration-300`}>
         <div className="text-center">
           <Loader2 className="animate-spin text-amber-500 mx-auto mb-4" size={48} />
-          <p className="text-slate-400">Loading analytics...</p>
+          <p className={textSecondary}>Loading analytics...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className={`min-h-screen ${bgMain} transition-colors duration-300`}>
       {/* Header */}
-      <div className="bg-slate-900 border-b border-slate-800 px-8 py-6">
+      <div className={`${bgHeader} border-b ${borderColor} px-8 py-6 transition-colors duration-300`}>
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-xl font-semibold text-white">Analytics</h1>
-            <p className="text-sm text-slate-400 mt-1">Deep insights and performance analytics</p>
+            <h1 className={`text-xl font-semibold ${textPrimary} transition-colors duration-300`}>Analytics</h1>
+            <p className={`text-sm ${textSecondary} mt-1 transition-colors duration-300`}>Deep insights and performance analytics</p>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -308,11 +320,11 @@ export default function AnalyticsPage() {
 
       <div className="p-8 space-y-6">
         {/* Filters */}
-        <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+        <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
-              <Calendar className="text-slate-400" size={18} />
-              <span className="text-sm font-medium text-slate-300">Date Range:</span>
+              <Calendar className={textSecondary} size={18} />
+              <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'} transition-colors duration-300`}>Date Range:</span>
             </div>
             {(['7d', '30d', '90d', '1y', 'all'] as const).map((range) => (
               <button
@@ -347,20 +359,20 @@ export default function AnalyticsPage() {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Total Materials</p>
+              <p className={`text-xs font-medium ${textSecondary} uppercase tracking-wide transition-colors duration-300`}>Total Materials</p>
               <Package className="text-blue-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-2">{stats.totalMaterials}</p>
-            <p className="text-xs text-slate-500">In selected period</p>
+            <p className={`text-3xl font-bold ${textPrimary} mb-2 transition-colors duration-300`}>{stats.totalMaterials}</p>
+            <p className={`text-xs ${textMuted} transition-colors duration-300`}>In selected period</p>
           </div>
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Transactions</p>
+              <p className={`text-xs font-medium ${textSecondary} uppercase tracking-wide transition-colors duration-300`}>Transactions</p>
               <FileText className="text-emerald-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-2">{stats.totalTransactions}</p>
+            <p className={`text-3xl font-bold ${textPrimary} mb-2 transition-colors duration-300`}>{stats.totalTransactions}</p>
             <div className="flex items-center gap-2 text-xs">
               <span className="text-emerald-400 font-medium">↑ {stats.receivingCount} Receiving</span>
               <span className="text-slate-500">•</span>
