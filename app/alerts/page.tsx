@@ -562,7 +562,7 @@ export default function AlertsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+        <div className={`${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-100'} rounded-xl p-4 border ${borderCard} transition-colors duration-300`}>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex flex-wrap gap-4">
               {/* Status Filter */}
@@ -578,7 +578,9 @@ export default function AlertsPage() {
                     className={`relative px-4 py-2 rounded-xl font-semibold text-sm transition-all duration-300 ${
                       filter === tab.key
                         ? 'text-white'
-                        : 'text-slate-400 hover:text-white bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/30'
+                        : theme === 'dark'
+                          ? 'text-slate-400 hover:text-white bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/30'
+                          : 'text-slate-600 hover:text-slate-900 bg-slate-200 hover:bg-slate-300 border border-slate-300'
                     }`}
                   >
                     {filter === tab.key && (
@@ -587,7 +589,7 @@ export default function AlertsPage() {
                     <span className="relative flex items-center gap-2">
                       {tab.label}
                       <span className={`px-1.5 py-0.5 rounded-md text-xs ${
-                        filter === tab.key ? 'bg-white/20' : 'bg-slate-700/50'
+                        filter === tab.key ? 'bg-white/20' : theme === 'dark' ? 'bg-slate-700/50' : 'bg-slate-300/50'
                       }`}>
                         {tab.count}
                       </span>
@@ -596,7 +598,7 @@ export default function AlertsPage() {
                 ))}
               </div>
 
-              <div className="h-8 w-px bg-slate-700/50 hidden md:block" />
+              <div className={`h-8 w-px ${theme === 'dark' ? 'bg-slate-700/50' : 'bg-slate-300'} hidden md:block transition-colors duration-300`} />
 
               {/* Type Filter */}
               <div className="flex gap-2">
@@ -610,8 +612,12 @@ export default function AlertsPage() {
                     onClick={() => setTypeFilter(type.key as typeof typeFilter)}
                     className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-300 ${
                       typeFilter === type.key
-                        ? 'bg-slate-700 text-white border border-slate-600'
-                        : 'text-slate-400 hover:text-white bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/30'
+                        ? theme === 'dark'
+                          ? 'bg-slate-700 text-white border border-slate-600'
+                          : 'bg-amber-500 text-white border border-amber-600'
+                        : theme === 'dark'
+                          ? 'text-slate-400 hover:text-white bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/30'
+                          : 'text-slate-600 hover:text-slate-900 bg-slate-200 hover:bg-slate-300 border border-slate-300'
                     }`}
                   >
                     {type.label}
@@ -633,7 +639,11 @@ export default function AlertsPage() {
               {acknowledgedCount > 0 && (
                 <button
                   onClick={() => openConfirmModal('clearResolved')}
-                  className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-400 hover:text-slate-300 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/30 rounded-xl transition-all duration-300"
+                  className={`flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-xl transition-all duration-300 ${
+                    theme === 'dark'
+                      ? 'text-slate-400 hover:text-slate-300 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/30'
+                      : 'text-slate-600 hover:text-slate-900 bg-slate-200 hover:bg-slate-300 border border-slate-300'
+                  }`}
                 >
                   <Trash2 size={14} />
                   Clear Resolved
@@ -655,17 +665,17 @@ export default function AlertsPage() {
         {/* Alerts List */}
         <div className="space-y-4">
           {isLoading ? (
-            <div className="bg-slate-800/50 rounded-xl p-16 text-center border border-slate-700/50">
+            <div className={`${bgCard} rounded-xl p-16 text-center border ${borderCard} transition-colors duration-300`}>
               <Loader2 className="animate-spin text-amber-500 mx-auto mb-4" size={48} />
-              <p className="text-slate-400 font-medium">Loading alerts...</p>
+              <p className={`${textSecondary} font-medium transition-colors duration-300`}>Loading alerts...</p>
             </div>
           ) : filteredAlerts.length === 0 ? (
-            <div className="bg-slate-800/50 rounded-xl p-16 text-center border border-slate-700/50">
-              <div className="w-20 h-20 bg-slate-700/30 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Bell className="text-slate-500" size={36} />
+            <div className={`${bgCard} rounded-xl p-16 text-center border ${borderCard} transition-colors duration-300`}>
+              <div className={`w-20 h-20 ${theme === 'dark' ? 'bg-slate-700/30' : 'bg-slate-200'} rounded-2xl flex items-center justify-center mx-auto mb-6 transition-colors duration-300`}>
+                <Bell className={textMuted} size={36} />
               </div>
-              <p className="text-white text-xl font-semibold mb-2">No alerts found</p>
-              <p className="text-slate-500 text-sm mb-4">
+              <p className={`${textPrimary} text-xl font-semibold mb-2 transition-colors duration-300`}>No alerts found</p>
+              <p className={`${textMuted} text-sm mb-4 transition-colors duration-300`}>
                 {filter === 'unacknowledged' 
                   ? 'All alerts have been acknowledged!' 
                   : filter === 'acknowledged'
@@ -683,7 +693,7 @@ export default function AlertsPage() {
               return (
                 <div
                   key={alert.id}
-                  className={`bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden transition-all duration-300 ${
+                  className={`${bgCard} rounded-xl border ${borderCard} overflow-hidden transition-all duration-300 ${
                     alert.acknowledged ? 'opacity-60' : ''
                   }`}
                 >
@@ -702,11 +712,15 @@ export default function AlertsPage() {
                         {/* Header */}
                         <div className="flex items-start justify-between gap-4 mb-3">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-base sm:text-lg font-semibold text-white truncate">{alert.materialDescription}</h3>
+                            <h3 className={`text-base sm:text-lg font-semibold ${textPrimary} truncate transition-colors duration-300`}>{alert.materialDescription}</h3>
                             <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded-lg border ${config.badgeBg} ${config.badgeText} ${config.badgeBorder}`}>
                               {alert.severity.toUpperCase()}
                             </span>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-lg bg-slate-700/50 text-slate-300 border border-slate-600/30">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-lg border transition-colors duration-300 ${
+                              theme === 'dark' 
+                                ? 'bg-slate-700/50 text-slate-300 border-slate-600/30' 
+                                : 'bg-slate-200 text-slate-700 border-slate-300'
+                            }`}>
                               <TypeIcon size={10} />
                               {getTypeLabel(alert.type)}
                             </span>
@@ -720,26 +734,42 @@ export default function AlertsPage() {
                         </div>
 
                         {/* Message */}
-                        <p className="text-sm text-slate-300 mb-4">{alert.message}</p>
+                        <p className={`text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'} mb-4 transition-colors duration-300`}>{alert.message}</p>
 
                         {/* Stats Grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                          <div className="p-2.5 rounded-lg bg-slate-900/50 border border-slate-700/30">
-                            <div className="text-slate-500 text-[10px] mb-0.5">Material Code</div>
-                            <p className="font-semibold text-white text-xs truncate">{alert.materialCode}</p>
+                          <div className={`p-2.5 rounded-lg border transition-colors duration-300 ${
+                            theme === 'dark' 
+                              ? 'bg-slate-900/50 border-slate-700/30' 
+                              : 'bg-slate-100 border-slate-200'
+                          }`}>
+                            <div className={`${textMuted} text-[10px] mb-0.5 transition-colors duration-300`}>Material Code</div>
+                            <p className={`font-semibold ${textPrimary} text-xs truncate transition-colors duration-300`}>{alert.materialCode}</p>
                           </div>
                           {alert.type === 'mismatch' && (
                             <>
-                              <div className="p-2.5 rounded-lg bg-slate-900/50 border border-slate-700/30">
-                                <div className="text-slate-500 text-[10px] mb-0.5">Local Qty</div>
-                                <p className="font-semibold text-white text-xs">{alert.localQuantity}</p>
+                              <div className={`p-2.5 rounded-lg border transition-colors duration-300 ${
+                                theme === 'dark' 
+                                  ? 'bg-slate-900/50 border-slate-700/30' 
+                                  : 'bg-slate-100 border-slate-200'
+                              }`}>
+                                <div className={`${textMuted} text-[10px] mb-0.5 transition-colors duration-300`}>Local Qty</div>
+                                <p className={`font-semibold ${textPrimary} text-xs transition-colors duration-300`}>{alert.localQuantity}</p>
                               </div>
-                              <div className="p-2.5 rounded-lg bg-slate-900/50 border border-slate-700/30">
-                                <div className="text-slate-500 text-[10px] mb-0.5">SAP Qty</div>
-                                <p className="font-semibold text-white text-xs">{alert.sapQuantity}</p>
+                              <div className={`p-2.5 rounded-lg border transition-colors duration-300 ${
+                                theme === 'dark' 
+                                  ? 'bg-slate-900/50 border-slate-700/30' 
+                                  : 'bg-slate-100 border-slate-200'
+                              }`}>
+                                <div className={`${textMuted} text-[10px] mb-0.5 transition-colors duration-300`}>SAP Qty</div>
+                                <p className={`font-semibold ${textPrimary} text-xs transition-colors duration-300`}>{alert.sapQuantity}</p>
                               </div>
-                              <div className="p-2.5 rounded-lg bg-slate-900/50 border border-slate-700/30">
-                                <div className="text-slate-500 text-[10px] mb-0.5">Variance</div>
+                              <div className={`p-2.5 rounded-lg border transition-colors duration-300 ${
+                                theme === 'dark' 
+                                  ? 'bg-slate-900/50 border-slate-700/30' 
+                                  : 'bg-slate-100 border-slate-200'
+                              }`}>
+                                <div className={`${textMuted} text-[10px] mb-0.5 transition-colors duration-300`}>Variance</div>
                                 <p className={`font-bold text-xs flex items-center gap-1 ${alert.variance > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                   {alert.variance > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                                   {alert.variance > 0 ? '+' : ''}{alert.variance.toFixed(2)}
@@ -748,15 +778,19 @@ export default function AlertsPage() {
                             </>
                           )}
                           {alert.type === 'low-stock' && (
-                            <div className="p-2.5 rounded-lg bg-slate-900/50 border border-slate-700/30">
-                              <div className="text-slate-500 text-[10px] mb-0.5">Current Stock</div>
+                            <div className={`p-2.5 rounded-lg border transition-colors duration-300 ${
+                              theme === 'dark' 
+                                ? 'bg-slate-900/50 border-slate-700/30' 
+                                : 'bg-slate-100 border-slate-200'
+                            }`}>
+                              <div className={`${textMuted} text-[10px] mb-0.5 transition-colors duration-300`}>Current Stock</div>
                               <p className="font-semibold text-amber-400 text-xs">{alert.localQuantity}</p>
                             </div>
                           )}
                         </div>
 
                         {/* Timestamp */}
-                        <div className="flex items-center gap-1.5 text-slate-500 text-xs">
+                        <div className={`flex items-center gap-1.5 ${textMuted} text-xs transition-colors duration-300`}>
                           <Clock size={12} />
                           {new Date(alert.createdAt).toLocaleString()}
                         </div>

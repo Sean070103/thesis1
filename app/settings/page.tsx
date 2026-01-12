@@ -313,21 +313,21 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <>
-                  <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
-                    <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Materials</p>
-                    <p className="text-3xl font-bold text-white">{stats.materials}</p>
+                  <div className={`${bgCard} rounded-xl p-5 border ${borderCard} transition-colors duration-300`}>
+                    <p className={`text-xs font-medium ${textMuted} mb-2 uppercase tracking-wide transition-colors duration-300`}>Materials</p>
+                    <p className={`text-3xl font-bold ${textPrimary} transition-colors duration-300`}>{stats.materials}</p>
                   </div>
-                  <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
-                    <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Transactions</p>
-                    <p className="text-3xl font-bold text-white">{stats.transactions}</p>
+                  <div className={`${bgCard} rounded-xl p-5 border ${borderCard} transition-colors duration-300`}>
+                    <p className={`text-xs font-medium ${textMuted} mb-2 uppercase tracking-wide transition-colors duration-300`}>Transactions</p>
+                    <p className={`text-3xl font-bold ${textPrimary} transition-colors duration-300`}>{stats.transactions}</p>
                   </div>
-                  <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
-                    <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Defects</p>
-                    <p className="text-3xl font-bold text-white">{stats.defects}</p>
+                  <div className={`${bgCard} rounded-xl p-5 border ${borderCard} transition-colors duration-300`}>
+                    <p className={`text-xs font-medium ${textMuted} mb-2 uppercase tracking-wide transition-colors duration-300`}>Defects</p>
+                    <p className={`text-3xl font-bold ${textPrimary} transition-colors duration-300`}>{stats.defects}</p>
                   </div>
-                  <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
-                    <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Alerts</p>
-                    <p className="text-3xl font-bold text-white">{stats.alerts}</p>
+                  <div className={`${bgCard} rounded-xl p-5 border ${borderCard} transition-colors duration-300`}>
+                    <p className={`text-xs font-medium ${textMuted} mb-2 uppercase tracking-wide transition-colors duration-300`}>Alerts</p>
+                    <p className={`text-3xl font-bold ${textPrimary} transition-colors duration-300`}>{stats.alerts}</p>
                   </div>
                 </>
               )}
@@ -351,20 +351,24 @@ export default function SettingsPage() {
             {/* Export & Import */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Export Data */}
-              <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+              <div className={`${bgCard} rounded-xl p-5 border ${borderCard} transition-colors duration-300`}>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2.5 bg-emerald-500/10 rounded-lg">
                     <Download className="text-emerald-400" size={20} />
                   </div>
                   <div>
-                    <h3 className="text-base font-semibold text-white">Export Data</h3>
-                    <p className="text-xs text-slate-500">Download backup as JSON</p>
+                    <h3 className={`text-base font-semibold ${textPrimary} transition-colors duration-300`}>Export Data</h3>
+                    <p className={`text-xs ${textMuted} transition-colors duration-300`}>Download backup as JSON</p>
                   </div>
                 </div>
                 <button
                   onClick={handleExportData}
                   disabled={isExporting}
-                  className="w-full px-4 py-2.5 bg-slate-700/50 text-white rounded-lg hover:bg-slate-600/50 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 border border-slate-600/50"
+                  className={`w-full px-4 py-2.5 rounded-lg transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 border ${
+                    theme === 'dark'
+                      ? 'bg-slate-700/50 text-white hover:bg-slate-600/50 border-slate-600/50'
+                      : 'bg-slate-200 text-slate-700 hover:bg-slate-300 border-slate-300'
+                  }`}
                 >
                   {isExporting ? (
                     <>
@@ -419,15 +423,15 @@ export default function SettingsPage() {
             </div>
 
             {/* Clear All Data */}
-            <div className="bg-red-950/30 rounded-xl p-5 border border-red-900/50">
+            <div className={`${theme === 'dark' ? 'bg-red-950/30' : 'bg-red-50'} rounded-xl p-5 border ${theme === 'dark' ? 'border-red-900/50' : 'border-red-200'} transition-colors duration-300`}>
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-red-500/10 rounded-lg">
                     <AlertCircle className="text-red-400" size={20} />
                   </div>
                   <div>
-                    <h3 className="text-base font-semibold text-white">Danger Zone</h3>
-                    <p className="text-xs text-slate-400">Permanently delete all data from the system</p>
+                    <h3 className={`text-base font-semibold ${textPrimary} transition-colors duration-300`}>Danger Zone</h3>
+                    <p className={`text-xs ${textSecondary} transition-colors duration-300`}>Permanently delete all data from the system</p>
                   </div>
                 </div>
                 <button
@@ -456,7 +460,15 @@ export default function SettingsPage() {
         {activeTab === 'notifications' && (
           <div className="space-y-6">
             {/* Email Configuration Status */}
-            <div className={`rounded-xl p-5 border ${emailConfigured ? 'bg-emerald-950/30 border-emerald-900/50' : 'bg-amber-950/30 border-amber-900/50'}`}>
+            <div className={`rounded-xl p-5 border transition-colors duration-300 ${
+              emailConfigured 
+                ? theme === 'dark' 
+                  ? 'bg-emerald-950/30 border-emerald-900/50' 
+                  : 'bg-emerald-50 border-emerald-200'
+                : theme === 'dark'
+                  ? 'bg-amber-950/30 border-amber-900/50'
+                  : 'bg-amber-50 border-amber-200'
+            }`}>
               <div className="flex items-center gap-3">
                 {emailConfigured ? (
                   <CheckCircle className="text-emerald-400 shrink-0" size={24} />
@@ -464,10 +476,14 @@ export default function SettingsPage() {
                   <AlertCircle className="text-amber-400 shrink-0" size={24} />
                 )}
                 <div>
-                  <p className={`font-semibold ${emailConfigured ? 'text-emerald-300' : 'text-amber-300'}`}>
+                  <p className={`font-semibold transition-colors duration-300 ${
+                    emailConfigured 
+                      ? theme === 'dark' ? 'text-emerald-300' : 'text-emerald-700'
+                      : theme === 'dark' ? 'text-amber-300' : 'text-amber-700'
+                  }`}>
                     {emailConfigured ? 'Email Service Connected' : 'Email Service Not Configured'}
                   </p>
-                  <p className="text-sm text-slate-400">
+                  <p className={`text-sm ${textSecondary} transition-colors duration-300`}>
                     {emailConfigured 
                       ? 'Email notifications are ready to send' 
                       : 'Set RESEND_API_KEY in environment variables to enable email notifications'}
@@ -495,64 +511,94 @@ export default function SettingsPage() {
                     onChange={(e) => setNotificationSettings({ ...notificationSettings, emailAlerts: e.target.checked })}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                  <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500 transition-colors duration-300 ${
+                    theme === 'dark' ? 'bg-slate-700' : 'bg-slate-300'
+                  }`}></div>
                 </label>
               </div>
 
               {notificationSettings.emailAlerts && (
-                <div className="space-y-5 pt-5 border-t border-slate-700/50">
+                <div className={`space-y-5 pt-5 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'} transition-colors duration-300`}>
                   {/* Email Recipients */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+                    <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'} mb-2 transition-colors duration-300`}>Email Address</label>
                     <input
                       type="email"
                       value={notificationSettings.emailRecipients}
                       onChange={(e) => setNotificationSettings({ ...notificationSettings, emailRecipients: e.target.value })}
                       placeholder="email@example.com"
-                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
+                      className={`w-full px-4 py-3 border rounded-xl ${textPrimary} placeholder-slate-500 focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all ${
+                        theme === 'dark' 
+                          ? 'bg-slate-900/50 border-slate-600/50' 
+                          : 'bg-slate-50 border-slate-300'
+                      }`}
                     />
                   </div>
 
                   {/* Notification Types */}
                   <div>
-                    <p className="text-sm font-medium text-slate-300 mb-3">Notification Types</p>
+                    <p className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'} mb-3 transition-colors duration-300`}>Notification Types</p>
                     <div className="space-y-3">
-                      <label className="flex items-center gap-3 cursor-pointer p-3 bg-slate-900/30 rounded-lg hover:bg-slate-900/50 transition-colors">
+                      <label className={`flex items-center gap-3 cursor-pointer p-3 rounded-lg transition-colors ${
+                        theme === 'dark' 
+                          ? 'bg-slate-900/30 hover:bg-slate-900/50' 
+                          : 'bg-slate-100 hover:bg-slate-200'
+                      }`}>
                         <input
                           type="checkbox"
                           checked={notificationSettings.alertEmails}
                           onChange={(e) => setNotificationSettings({ ...notificationSettings, alertEmails: e.target.checked })}
-                          className="w-4 h-4 text-amber-500 bg-slate-700 border-slate-600 rounded focus:ring-amber-500"
+                          className={`w-4 h-4 text-amber-500 rounded focus:ring-amber-500 ${
+                            theme === 'dark' 
+                              ? 'bg-slate-700 border-slate-600' 
+                              : 'bg-white border-slate-300'
+                          }`}
                         />
                         <div>
-                          <span className="text-sm text-white font-medium">SAP Mismatch Alerts</span>
-                          <p className="text-xs text-slate-500">Get notified when inventory doesn't match SAP</p>
+                          <span className={`text-sm ${textPrimary} font-medium transition-colors duration-300`}>SAP Mismatch Alerts</span>
+                          <p className={`text-xs ${textMuted} transition-colors duration-300`}>Get notified when inventory doesn't match SAP</p>
                         </div>
                       </label>
 
-                      <label className="flex items-center gap-3 cursor-pointer p-3 bg-slate-900/30 rounded-lg hover:bg-slate-900/50 transition-colors">
+                      <label className={`flex items-center gap-3 cursor-pointer p-3 rounded-lg transition-colors ${
+                        theme === 'dark' 
+                          ? 'bg-slate-900/30 hover:bg-slate-900/50' 
+                          : 'bg-slate-100 hover:bg-slate-200'
+                      }`}>
                         <input
                           type="checkbox"
                           checked={notificationSettings.transactionEmails}
                           onChange={(e) => setNotificationSettings({ ...notificationSettings, transactionEmails: e.target.checked })}
-                          className="w-4 h-4 text-amber-500 bg-slate-700 border-slate-600 rounded focus:ring-amber-500"
+                          className={`w-4 h-4 text-amber-500 rounded focus:ring-amber-500 ${
+                            theme === 'dark' 
+                              ? 'bg-slate-700 border-slate-600' 
+                              : 'bg-white border-slate-300'
+                          }`}
                         />
                         <div>
-                          <span className="text-sm text-white font-medium">Transaction Notifications</span>
-                          <p className="text-xs text-slate-500">Receiving and issuance activities</p>
+                          <span className={`text-sm ${textPrimary} font-medium transition-colors duration-300`}>Transaction Notifications</span>
+                          <p className={`text-xs ${textMuted} transition-colors duration-300`}>Receiving and issuance activities</p>
                         </div>
                       </label>
 
-                      <label className="flex items-center gap-3 cursor-pointer p-3 bg-slate-900/30 rounded-lg hover:bg-slate-900/50 transition-colors">
+                      <label className={`flex items-center gap-3 cursor-pointer p-3 rounded-lg transition-colors ${
+                        theme === 'dark' 
+                          ? 'bg-slate-900/30 hover:bg-slate-900/50' 
+                          : 'bg-slate-100 hover:bg-slate-200'
+                      }`}>
                         <input
                           type="checkbox"
                           checked={notificationSettings.defectEmails}
                           onChange={(e) => setNotificationSettings({ ...notificationSettings, defectEmails: e.target.checked })}
-                          className="w-4 h-4 text-amber-500 bg-slate-700 border-slate-600 rounded focus:ring-amber-500"
+                          className={`w-4 h-4 text-amber-500 rounded focus:ring-amber-500 ${
+                            theme === 'dark' 
+                              ? 'bg-slate-700 border-slate-600' 
+                              : 'bg-white border-slate-300'
+                          }`}
                         />
                         <div>
-                          <span className="text-sm text-white font-medium">Defect Reports</span>
-                          <p className="text-xs text-slate-500">New defects reported in the system</p>
+                          <span className={`text-sm ${textPrimary} font-medium transition-colors duration-300`}>Defect Reports</span>
+                          <p className={`text-xs ${textMuted} transition-colors duration-300`}>New defects reported in the system</p>
                         </div>
                       </label>
                     </div>
@@ -568,7 +614,9 @@ export default function SettingsPage() {
                           ? 'bg-emerald-600 text-white'
                           : testEmailStatus === 'error'
                           ? 'bg-red-600 text-white'
-                          : 'bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed'
+                          : theme === 'dark'
+                            ? 'bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed'
+                            : 'bg-slate-300 text-slate-700 hover:bg-slate-400 disabled:opacity-50 disabled:cursor-not-allowed'
                       }`}
                     >
                       {isTestingEmail ? (

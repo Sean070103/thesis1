@@ -379,30 +379,30 @@ export default function AnalyticsPage() {
               <span className="text-blue-400 font-medium">↓ {stats.issuanceCount} Issuance</span>
             </div>
           </div>
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Defects</p>
+              <p className={`text-xs font-medium ${textSecondary} uppercase tracking-wide transition-colors duration-300`}>Defects</p>
               <AlertTriangle className="text-amber-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-2">{stats.totalDefects}</p>
-            <p className="text-xs text-slate-500">Reported issues</p>
+            <p className={`text-3xl font-bold ${textPrimary} mb-2 transition-colors duration-300`}>{stats.totalDefects}</p>
+            <p className={`text-xs ${textMuted} transition-colors duration-300`}>Reported issues</p>
           </div>
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Active Alerts</p>
+              <p className={`text-xs font-medium ${textSecondary} uppercase tracking-wide transition-colors duration-300`}>Active Alerts</p>
               <Bell className="text-rose-400" size={20} />
             </div>
-            <p className="text-3xl font-bold text-white mb-2">{stats.activeAlerts}</p>
-            <p className="text-xs text-slate-500">Requiring attention</p>
+            <p className={`text-3xl font-bold ${textPrimary} mb-2 transition-colors duration-300`}>{stats.activeAlerts}</p>
+            <p className={`text-xs ${textMuted} transition-colors duration-300`}>Requiring attention</p>
           </div>
         </div>
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Transaction Trends */}
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <TrendingUp className="text-slate-400" size={20} />
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
+            <h3 className={`text-lg font-semibold ${textPrimary} mb-6 flex items-center gap-2 transition-colors duration-300`}>
+              <TrendingUp className={textSecondary} size={20} />
               Transaction Trends
             </h3>
             <div className="h-64 flex items-end justify-between gap-1 overflow-x-auto">
@@ -420,44 +420,44 @@ export default function AnalyticsPage() {
                       title={`Issuance: ${trend.issuance}`}
                     />
                   </div>
-                  <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
+                  <span className={`text-[10px] ${textSecondary} font-medium whitespace-nowrap transition-colors duration-300`}>
                     {trend.date.split(' ')[0]}
                   </span>
                 </div>
               ))}
             </div>
-            <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-slate-700">
+            <div className={`flex items-center justify-center gap-4 mt-4 pt-4 border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'} transition-colors duration-300`}>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-emerald-500 rounded"></div>
-                <span className="text-xs text-slate-400">Receiving</span>
+                <span className={`text-xs ${textSecondary} transition-colors duration-300`}>Receiving</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-blue-500 rounded"></div>
-                <span className="text-xs text-slate-400">Issuance</span>
+                <span className={`text-xs ${textSecondary} transition-colors duration-300`}>Issuance</span>
               </div>
             </div>
           </div>
 
           {/* Category Distribution */}
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <BarChart3 className="text-slate-400" size={20} />
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
+            <h3 className={`text-lg font-semibold ${textPrimary} mb-6 flex items-center gap-2 transition-colors duration-300`}>
+              <BarChart3 className={textSecondary} size={20} />
               Material Distribution by Category
             </h3>
             <div className="space-y-4">
               {categoryDistribution.length === 0 ? (
                 <div className="text-center py-8">
-                  <Package className="mx-auto text-slate-600 mb-3" size={32} />
-                  <p className="text-sm text-slate-400">No categories found</p>
+                  <Package className={`mx-auto ${textMuted} mb-3 transition-colors duration-300`} size={32} />
+                  <p className={`text-sm ${textSecondary} transition-colors duration-300`}>No categories found</p>
                 </div>
               ) : (
                 categoryDistribution.slice(0, 5).map((item, i) => (
                   <div key={i} className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-white">{item.category || 'Uncategorized'}</span>
-                      <span className="text-sm font-bold text-slate-300">{item.count} ({item.percentage.toFixed(1)}%)</span>
+                      <span className={`text-sm font-semibold ${textPrimary} transition-colors duration-300`}>{item.category || 'Uncategorized'}</span>
+                      <span className={`text-sm font-bold ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'} transition-colors duration-300`}>{item.count} ({item.percentage.toFixed(1)}%)</span>
                     </div>
-                    <div className="h-3 bg-slate-900 rounded-full overflow-hidden">
+                    <div className={`h-3 ${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-200'} rounded-full overflow-hidden transition-colors duration-300`}>
                       <div
                         className="h-full bg-amber-500 rounded-full transition-all duration-500"
                         style={{ width: `${item.percentage}%` }}
@@ -488,18 +488,18 @@ export default function AnalyticsPage() {
                 const total = defectSeverity.critical + defectSeverity.high + defectSeverity.medium + defectSeverity.low;
                 const percentage = total > 0 ? (item.value / total) * 100 : 0;
                 return (
-                  <div key={i} className="p-4 bg-slate-900 rounded-lg border border-slate-700">
+                  <div key={i} className={`p-4 ${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} rounded-lg border ${borderCard} transition-colors duration-300`}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-white">{item.label}</span>
-                      <span className="text-sm font-bold text-white">{item.value}</span>
+                      <span className={`text-sm font-medium ${textPrimary} transition-colors duration-300`}>{item.label}</span>
+                      <span className={`text-sm font-bold ${textPrimary} transition-colors duration-300`}>{item.value}</span>
                     </div>
-                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div className={`h-2 ${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-200'} rounded-full overflow-hidden transition-colors duration-300`}>
                       <div
                         className={`h-full ${item.color} rounded-full transition-all duration-500`}
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">{percentage.toFixed(1)}% of total defects</p>
+                    <p className={`text-xs ${textMuted} mt-1 transition-colors duration-300`}>{percentage.toFixed(1)}% of total defects</p>
                   </div>
                 );
               })}
@@ -507,9 +507,9 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Alert Severity Distribution */}
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <Bell className="text-slate-400" size={20} />
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
+            <h3 className={`text-lg font-semibold ${textPrimary} mb-6 flex items-center gap-2 transition-colors duration-300`}>
+              <Bell className={textSecondary} size={20} />
               Alert Severity Distribution
             </h3>
             <div className="space-y-4">
@@ -521,18 +521,18 @@ export default function AnalyticsPage() {
                 const total = alertSeverity.critical + alertSeverity.error + alertSeverity.warning;
                 const percentage = total > 0 ? (item.value / total) * 100 : 0;
                 return (
-                  <div key={i} className="p-4 bg-slate-900 rounded-lg border border-slate-700">
+                  <div key={i} className={`p-4 ${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} rounded-lg border ${borderCard} transition-colors duration-300`}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-white">{item.label}</span>
-                      <span className="text-sm font-bold text-white">{item.value}</span>
+                      <span className={`text-sm font-medium ${textPrimary} transition-colors duration-300`}>{item.label}</span>
+                      <span className={`text-sm font-bold ${textPrimary} transition-colors duration-300`}>{item.value}</span>
                     </div>
-                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div className={`h-2 ${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-200'} rounded-full overflow-hidden transition-colors duration-300`}>
                       <div
                         className={`h-full ${item.color} rounded-full transition-all duration-500`}
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">{percentage.toFixed(1)}% of total alerts</p>
+                    <p className={`text-xs ${textMuted} mt-1 transition-colors duration-300`}>{percentage.toFixed(1)}% of total alerts</p>
                   </div>
                 );
               })}
