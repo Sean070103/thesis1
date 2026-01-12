@@ -321,7 +321,7 @@ export const sendEmail = async (
   
   try {
     const { data, error } = await resend.emails.send({
-      from: `Warehouse System <${fromEmail}>`,
+      from: `ACI Autocarpets Inc. <${fromEmail}>`,
       to: recipients,
       subject,
       html,

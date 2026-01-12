@@ -8,8 +8,8 @@ import AuthWrapper from '@/components/AuthWrapper'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Autocarpets Incorporation - Inventory Management System',
-  description: 'Autocarpets Incorporation inventory and material management system',
+  title: 'ACI Autocarpets Inc. - Inventory Management System',
+  description: 'ACI Autocarpets Inc. inventory and material management system',
 }
 
 export default function RootLayout({

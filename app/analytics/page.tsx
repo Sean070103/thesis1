@@ -302,14 +302,22 @@ export default function AnalyticsPage() {
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 ${
+                theme === 'dark'
+                  ? 'text-white bg-slate-800 border border-slate-700 hover:bg-slate-700'
+                  : 'text-white bg-slate-900 border border-slate-800 hover:bg-slate-800'
+              }`}
             >
               <RefreshCw className={isRefreshing ? 'animate-spin' : ''} size={18} />
               Refresh
             </button>
             <button
               onClick={exportAnalyticsPDF}
-              className="px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${
+                theme === 'dark'
+                  ? 'text-white bg-slate-800 border border-slate-700 hover:bg-slate-700'
+                  : 'text-white bg-slate-900 border border-slate-800 hover:bg-slate-800'
+              }`}
             >
               <Download size={16} />
               Export PDF
@@ -330,22 +338,30 @@ export default function AnalyticsPage() {
               <button
                 key={range}
                 onClick={() => setDateRange(range)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors border ${
                   dateRange === range
-                    ? 'bg-slate-700 text-white border border-slate-600'
-                    : 'bg-slate-900 text-slate-300 hover:bg-slate-700 border border-slate-700'
+                    ? theme === 'dark'
+                      ? 'bg-slate-700 text-white border-slate-600'
+                      : 'bg-amber-500 text-white border-amber-600'
+                    : theme === 'dark'
+                      ? 'bg-slate-900 text-slate-300 hover:bg-slate-700 border-slate-700'
+                      : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
                 }`}
               >
                 {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : range === '1y' ? '1 Year' : 'All Time'}
               </button>
             ))}
             <div className="ml-auto flex items-center gap-2">
-              <Filter className="text-slate-400" size={18} />
-              <span className="text-sm font-medium text-slate-300">Category:</span>
+              <Filter className={theme === 'dark' ? 'text-slate-400' : 'text-slate-600'} size={18} />
+              <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'} transition-colors duration-300`}>Category:</span>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-slate-600 focus:border-slate-600"
+                className={`px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors duration-300 ${
+                  theme === 'dark'
+                    ? 'bg-slate-900 border-slate-700 text-white focus:ring-slate-600 focus:border-slate-600'
+                    : 'bg-white border-slate-300 text-slate-900 focus:ring-amber-500 focus:border-amber-500'
+                }`}
               >
                 {categories.map(cat => (
                   <option key={cat} value={cat}>
@@ -473,9 +489,9 @@ export default function AnalyticsPage() {
         {/* Defect & Alert Analysis */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Defect Severity Distribution */}
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <AlertTriangle className="text-slate-400" size={20} />
+          <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
+            <h3 className={`text-lg font-semibold ${textPrimary} mb-6 flex items-center gap-2 transition-colors duration-300`}>
+              <AlertTriangle className={textSecondary} size={20} />
               Defect Severity Distribution
             </h3>
             <div className="space-y-4">
@@ -541,38 +557,38 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Transaction Analysis */}
-        <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-          <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-            <BarChart3 className="text-slate-400" size={20} />
+        <div className={`${bgCard} rounded-lg border ${borderCard} p-6 transition-colors duration-300`}>
+          <h3 className={`text-lg font-semibold ${textPrimary} mb-6 flex items-center gap-2 transition-colors duration-300`}>
+            <BarChart3 className={textSecondary} size={20} />
             Transaction Analysis
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-slate-900 rounded-lg p-5 border border-slate-700">
-              <p className="text-sm text-slate-400 mb-2">Receiving Transactions</p>
+            <div className={`${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-50'} rounded-lg p-5 border ${borderCard} transition-colors duration-300`}>
+              <p className={`text-sm ${textSecondary} mb-2 transition-colors duration-300`}>Receiving Transactions</p>
               <p className="text-3xl font-bold text-emerald-400 mb-1">{stats.receivingCount}</p>
-              <p className="text-xs text-slate-500">
+              <p className={`text-xs ${textMuted} transition-colors duration-300`}>
                 {stats.totalTransactions > 0 
                   ? `${((stats.receivingCount / stats.totalTransactions) * 100).toFixed(1)}% of total`
                   : '0% of total'}
               </p>
             </div>
-            <div className="bg-slate-900 rounded-lg p-5 border border-slate-700">
-              <p className="text-sm text-slate-400 mb-2">Issuance Transactions</p>
+            <div className={`${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-50'} rounded-lg p-5 border ${borderCard} transition-colors duration-300`}>
+              <p className={`text-sm ${textSecondary} mb-2 transition-colors duration-300`}>Issuance Transactions</p>
               <p className="text-3xl font-bold text-blue-400 mb-1">{stats.issuanceCount}</p>
-              <p className="text-xs text-slate-500">
+              <p className={`text-xs ${textMuted} transition-colors duration-300`}>
                 {stats.totalTransactions > 0 
                   ? `${((stats.issuanceCount / stats.totalTransactions) * 100).toFixed(1)}% of total`
                   : '0% of total'}
               </p>
             </div>
-            <div className="bg-slate-900 rounded-lg p-5 border border-slate-700">
-              <p className="text-sm text-slate-400 mb-2">Transaction Ratio</p>
+            <div className={`${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-50'} rounded-lg p-5 border ${borderCard} transition-colors duration-300`}>
+              <p className={`text-sm ${textSecondary} mb-2 transition-colors duration-300`}>Transaction Ratio</p>
               <p className="text-3xl font-bold text-amber-400 mb-1">
                 {stats.issuanceCount > 0 
                   ? (stats.receivingCount / stats.issuanceCount).toFixed(2)
                   : stats.receivingCount > 0 ? '∞' : '0'}
               </p>
-              <p className="text-xs text-slate-500">Receiving : Issuance</p>
+              <p className={`text-xs ${textMuted} transition-colors duration-300`}>Receiving : Issuance</p>
             </div>
           </div>
         </div>

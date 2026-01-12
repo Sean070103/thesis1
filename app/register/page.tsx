@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Box, Eye, EyeOff, UserPlus, Loader2, CheckCircle, XCircle, Shield } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, Loader2, CheckCircle, XCircle, Shield } from 'lucide-react';
 import { createUserInSupabase } from '@/lib/supabase-storage';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
@@ -147,10 +147,13 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-4 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl shadow-lg shadow-amber-500/20 mb-4">
-            <Box className="text-white" size={32} />
+          <div className="inline-flex items-center justify-center mb-4">
+            <img 
+              src="/images/aclogo.jfif" 
+              alt="ACI Autocarpets Inc. Logo" 
+              className="h-20 w-auto object-contain"
+            />
           </div>
-          <h1 className="text-2xl font-bold text-white">Autocarpets Inc.</h1>
           <p className="text-slate-400 text-sm mt-1">Inventory Management System</p>
         </div>
 
@@ -342,7 +345,7 @@ export default function RegisterPage() {
             This page is restricted to system administrators.
           </p>
           <p className="text-slate-600 text-xs">
-            © 2024 Autocarpets Incorporation. All rights reserved.
+            © 2026 ACI Autocarpets Inc. All rights reserved.
           </p>
         </div>
       </div>

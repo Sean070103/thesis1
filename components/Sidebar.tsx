@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Package, FileText, AlertTriangle, Bell, Box, DollarSign, BarChart3, Settings, ChevronRight, LogOut, User, Sparkles, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, Package, FileText, AlertTriangle, Bell, DollarSign, BarChart3, Settings, ChevronRight, LogOut, User, Sparkles, Sun, Moon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -111,21 +111,17 @@ export default function Sidebar() {
           <div className={`p-6 border-b transition-colors duration-300 ${
             theme === 'dark' ? 'border-slate-800/30' : 'border-slate-200/80'
           }`}>
-          <div className="flex items-center space-x-3.5">
+          <div className="flex items-center">
             <div className="relative group">
               {/* Logo glow effect */}
               <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-600 rounded-xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity duration-500" />
-              <div className="relative p-2.5 bg-gradient-to-br from-amber-500 via-amber-500 to-orange-600 rounded-xl shadow-lg shadow-amber-500/30">
-                <Box className="text-white" size={22} />
+              <div className="relative p-1.5 bg-white rounded-xl shadow-lg shadow-amber-500/30">
+                <img 
+                  src="/images/aclogo.jfif" 
+                  alt="ACI Autocarpets Inc. Logo" 
+                  className="h-8 w-auto object-contain rounded-lg"
+                />
               </div>
-            </div>
-            <div>
-              <h1 className={`font-bold text-base tracking-tight transition-colors duration-300 ${
-                theme === 'dark' ? 'text-white' : 'text-slate-800'
-              }`}>Autocarpets Inc.</h1>
-              <p className={`text-xs font-medium transition-colors duration-300 ${
-                theme === 'dark' ? 'text-slate-500' : 'text-slate-500'
-              }`}>Inventory Management</p>
             </div>
           </div>
         </div>
