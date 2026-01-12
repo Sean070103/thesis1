@@ -15,7 +15,35 @@ import {
 } from '@/lib/supabase-storage';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Alert, Material } from '@/types';
+import { sendAlertNotification } from '@/lib/email';
 import ConfirmModal from '@/components/ConfirmModal';
+
+// Helper function to send alert email if notifications are enabled
+const sendAlertEmailIfEnabled = async (alert: Alert) => {
+  try {
+    // Get notification settings from localStorage
+    const savedSettings = localStorage.getItem('notificationSettings');
+    if (!savedSettings) return;
+    
+    const settings = JSON.parse(savedSettings);
+    // Check if email alerts are enabled and alert emails are enabled
+    if (!settings.emailAlerts || !settings.alertEmails || !settings.emailRecipients) return;
+
+    // Send email notification
+    await sendAlertNotification(settings.emailRecipients, {
+      materialCode: alert.materialCode,
+      materialDescription: alert.materialDescription,
+      localQuantity: alert.localQuantity,
+      sapQuantity: alert.sapQuantity,
+      variance: alert.variance,
+      severity: alert.severity,
+      createdAt: alert.createdAt,
+    });
+  } catch (error) {
+    console.error('Failed to send alert email:', error);
+    // Don't throw - email failure shouldn't break alert creation
+  }
+};
 
 // Toast Notification Component
 function Toast({ 
@@ -164,6 +192,9 @@ export default function AlertsPage() {
             await saveAlertToSupabase(alert);
             existingAlertKeys.add(alertKey);
             newAlertsCreated++;
+            
+            // Send automatic email notification if enabled
+            await sendAlertEmailIfEnabled(alert);
           }
         }
       }
@@ -191,6 +222,9 @@ export default function AlertsPage() {
           await saveAlertToSupabase(alert);
           existingAlertKeys.add(alertKey);
           newAlertsCreated++;
+          
+          // Send automatic email notification if enabled
+          await sendAlertEmailIfEnabled(alert);
         }
       }
     }

@@ -119,7 +119,7 @@ export const generateAlertEmailHTML = (alert: AlertEmailData): string => {
             
             <!-- Action Button -->
             <div style="text-align: center; margin-top: 30px;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/alerts" 
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://thesis1-psi.vercel.app'}/alerts" 
                  style="display: inline-block; background-color: ${severityColor}; color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; font-size: 14px;">
                 View Alert Details
               </a>
@@ -197,7 +197,7 @@ export const generateTransactionEmailHTML = (transaction: TransactionEmailData):
             
             <!-- Action Button -->
             <div style="text-align: center; margin-top: 30px;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/transactions" 
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://thesis1-psi.vercel.app'}/transactions" 
                  style="display: inline-block; background-color: ${typeColor}; color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; font-size: 14px;">
                 View All Transactions
               </a>
@@ -278,7 +278,7 @@ export const generateDefectEmailHTML = (defect: DefectEmailData): string => {
             
             <!-- Action Button -->
             <div style="text-align: center; margin-top: 30px;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/defects" 
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://thesis1-psi.vercel.app'}/defects" 
                  style="display: inline-block; background-color: ${severityColor}; color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; font-size: 14px;">
                 View Defect Details
               </a>
@@ -310,28 +310,42 @@ export const sendEmail = async (
   const resend = getResend();
   
   if (!resend) {
-    console.log('Email not configured - skipping send');
-    return { success: false, error: 'Email service not configured' };
+    console.error('Email: Resend instance not available - API key may be missing or invalid');
+    return { success: false, error: 'Email service not configured. Please set RESEND_API_KEY in environment variables.' };
   }
+
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+  const recipients = Array.isArray(to) ? to : [to];
+  
+  console.log('Email: Attempting to send', { from: fromEmail, to: recipients, subject });
   
   try {
     const { data, error } = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'Warehouse System <onboarding@resend.dev>',
-      to: Array.isArray(to) ? to : [to],
+      from: `Warehouse System <${fromEmail}>`,
+      to: recipients,
       subject,
       html,
     });
     
     if (error) {
-      console.error('Email send error:', error);
-      return { success: false, error: error.message };
+      console.error('Email: Resend API error:', error);
+      return { 
+        success: false, 
+        error: error.message || `Resend API error: ${JSON.stringify(error)}` 
+      };
     }
     
-    console.log('Email sent successfully:', data);
+    console.log('Email: Sent successfully', { id: data?.id, to: recipients });
     return { success: true };
   } catch (err) {
-    console.error('Email send exception:', err);
-    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+    console.error('Email: Exception during send:', err);
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+    const errorDetails = err instanceof Error ? err.stack : String(err);
+    console.error('Email: Error details:', errorDetails);
+    return { 
+      success: false, 
+      error: `Failed to send email: ${errorMessage}. Please check your RESEND_API_KEY and RESEND_FROM_EMAIL configuration.` 
+    };
   }
 };
 

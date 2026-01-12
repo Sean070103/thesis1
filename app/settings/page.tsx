@@ -18,7 +18,7 @@ import AlertModal from '@/components/AlertModal';
 
 const defaultNotificationSettings = {
   emailAlerts: false,
-  emailRecipients: '',
+  emailRecipients: 'warehouseautocarpets@gmail.com',
   alertEmails: true,
   transactionEmails: false,
   defectEmails: true,
@@ -117,18 +117,24 @@ export default function SettingsPage() {
 
       const result = await res.json();
       
+      console.log('Email API response:', { status: res.status, result });
+      
       if (result.success) {
         setTestEmailStatus('success');
+        showAlert('Email Sent', 'Test email sent successfully!', 'success');
         setTimeout(() => setTestEmailStatus('idle'), 5000);
       } else {
         setTestEmailStatus('error');
-        showAlert('Email Failed', `Failed to send test email: ${result.error}`, 'error');
+        const errorMessage = result.error || `Server returned status ${res.status}`;
+        console.error('Email send failed:', errorMessage);
+        showAlert('Email Failed', `Failed to send test email: ${errorMessage}`, 'error');
         setTimeout(() => setTestEmailStatus('idle'), 5000);
       }
     } catch (error) {
       console.error('Test email error:', error);
       setTestEmailStatus('error');
-      showAlert('Email Failed', 'Failed to send test email. Please check your configuration.', 'error');
+      const errorMessage = error instanceof Error ? error.message : 'Network error or server unavailable';
+      showAlert('Email Failed', `Failed to send test email: ${errorMessage}. Please check your RESEND_API_KEY configuration.`, 'error');
       setTimeout(() => setTestEmailStatus('idle'), 5000);
     } finally {
       setIsTestingEmail(false);
@@ -526,7 +532,7 @@ export default function SettingsPage() {
                       type="email"
                       value={notificationSettings.emailRecipients}
                       onChange={(e) => setNotificationSettings({ ...notificationSettings, emailRecipients: e.target.value })}
-                      placeholder="email@example.com"
+                      placeholder="warehouseautocarpets@gmail.com"
                       className={`w-full px-4 py-3 border rounded-xl ${textPrimary} placeholder-slate-500 focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all ${
                         theme === 'dark' 
                           ? 'bg-slate-900/50 border-slate-600/50' 
