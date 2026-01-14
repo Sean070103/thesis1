@@ -53,6 +53,7 @@ export async function getMaterialsFromSupabase(): Promise<Material[]> {
     quantity: Number(m.quantity),
     location: m.location,
     sapQuantity: m.sap_quantity ? Number(m.sap_quantity) : undefined,
+    reorderThreshold: m.reorder_threshold ? Number(m.reorder_threshold) : undefined,
     lastUpdated: m.last_updated,
   }));
 }
@@ -81,6 +82,7 @@ export async function saveMaterialToSupabase(material: Material): Promise<boolea
     quantity: material.quantity,
     location: material.location,
     sap_quantity: material.sapQuantity,
+    reorder_threshold: material.reorderThreshold,
     last_updated: new Date().toISOString(),
   };
 
@@ -1078,6 +1080,10 @@ export async function deleteUserFromSupabase(id: string): Promise<boolean> {
   }
   return true;
 }
+
+// ============================================
+// UTILITY
+// ============================================
 
 // ============================================
 // UTILITY

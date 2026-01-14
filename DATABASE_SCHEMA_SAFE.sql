@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS materials (
     quantity NUMERIC DEFAULT 0,
     location TEXT,
     sap_quantity NUMERIC DEFAULT 0,
+    reorder_threshold NUMERIC DEFAULT NULL,
     last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -96,14 +97,14 @@ CREATE INDEX IF NOT EXISTS idx_defects_reported_date ON defects(reported_date DE
 -- =====================================================
 CREATE TABLE IF NOT EXISTS alerts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    type TEXT NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('mismatch', 'low-stock', 'discrepancy', 'reorder-threshold', 'defect', 'transaction')),
     material_code TEXT NOT NULL,
     material_description TEXT,
     message TEXT NOT NULL,
     local_quantity NUMERIC DEFAULT 0,
     sap_quantity NUMERIC DEFAULT 0,
     variance NUMERIC DEFAULT 0,
-    severity TEXT NOT NULL DEFAULT 'warning',
+    severity TEXT NOT NULL DEFAULT 'warning' CHECK (severity IN ('warning', 'error', 'critical')),
     acknowledged BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

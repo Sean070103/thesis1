@@ -1,26 +1,40 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2, Search, Package, Loader2 } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { Plus, Edit, Trash2, Search, Package, Loader2, AlertTriangle, Filter, History, Eye, Hash, Tag, Box, MapPin, Database, X, File } from 'lucide-react';
 import { 
   getMaterialsFromSupabase, 
   saveMaterialToSupabase, 
   deleteMaterialFromSupabase,
+  getTransactionsFromSupabase,
   generateId 
 } from '@/lib/supabase-storage';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Material } from '@/types';
+import { Material, MaterialTransaction } from '@/types';
 import ConfirmModal from '@/components/ConfirmModal';
 import AlertModal from '@/components/AlertModal';
+import TransactionHistoryModal from '@/components/TransactionHistoryModal';
+import MaterialDetailsModal from '@/components/MaterialDetailsModal';
 
 export default function MaterialsPage() {
   const { theme } = useTheme();
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [transactions, setTransactions] = useState<MaterialTransaction[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [alertFilter, setAlertFilter] = useState<'all' | 'low-stock' | 'reorder-threshold' | 'critical' | 'out-of-stock'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+  const [historyModal, setHistoryModal] = useState<{ isOpen: boolean; material: Material | null }>({
+    isOpen: false,
+    material: null,
+  });
+  const [detailsModal, setDetailsModal] = useState<{ isOpen: boolean; material: Material | null }>({
+    isOpen: false,
+    material: null,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const LOW_STOCK_THRESHOLD = 10;
   const [formData, setFormData] = useState<Partial<Material>>({
     materialCode: '',
     description: '',
@@ -29,6 +43,7 @@ export default function MaterialsPage() {
     quantity: 0,
     location: '',
     sapQuantity: 0,
+    reorderThreshold: 0,
   });
 
   // Modal states
@@ -48,14 +63,45 @@ export default function MaterialsPage() {
   };
 
   useEffect(() => {
-    loadMaterials();
+    loadData();
   }, []);
 
-  const loadMaterials = async () => {
+  const loadData = async () => {
     setIsLoading(true);
-    const data = await getMaterialsFromSupabase();
-    setMaterials(data);
+    const [materialsData, transactionsData] = await Promise.all([
+      getMaterialsFromSupabase(),
+      getTransactionsFromSupabase()
+    ]);
+    setMaterials(materialsData);
+    setTransactions(transactionsData);
     setIsLoading(false);
+  };
+
+  // Get transactions for a specific material
+  const getMaterialTransactions = (materialCode: string): MaterialTransaction[] => {
+    return transactions
+      .filter(t => t.materialCode === materialCode)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+
+  // Open transaction history modal
+  const openHistoryModal = (material: Material) => {
+    setHistoryModal({ isOpen: true, material });
+  };
+
+  // Close transaction history modal
+  const closeHistoryModal = () => {
+    setHistoryModal({ isOpen: false, material: null });
+  };
+
+  // Open material details modal
+  const openDetailsModal = (material: Material) => {
+    setDetailsModal({ isOpen: true, material });
+  };
+
+  // Close material details modal
+  const closeDetailsModal = () => {
+    setDetailsModal({ isOpen: false, material: null });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -86,13 +132,14 @@ export default function MaterialsPage() {
       quantity: formData.quantity || 0,
       location: formData.location?.trim() || '',
       sapQuantity: formData.sapQuantity,
+      reorderThreshold: formData.reorderThreshold,
       lastUpdated: new Date().toISOString(),
     };
 
     const success = await saveMaterialToSupabase(material);
     
     if (success) {
-      await loadMaterials();
+      await loadData();
       setIsModalOpen(false);
       resetForm();
     } else {
@@ -119,7 +166,7 @@ export default function MaterialsPage() {
     setDeleteModal({ isOpen: false, materialId: null });
     
     if (success) {
-      await loadMaterials();
+      await loadData();
     } else {
       showAlert('Error', 'Failed to delete material. Please try again.', 'error');
     }
@@ -134,20 +181,46 @@ export default function MaterialsPage() {
       quantity: 0,
       location: '',
       sapQuantity: 0,
+      reorderThreshold: 0,
     });
     setEditingMaterial(null);
   };
 
-  const filteredMaterials = materials.filter(m => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      m.materialCode?.toLowerCase().includes(search) ||
-      m.description?.toLowerCase().includes(search) ||
-      m.category?.toLowerCase().includes(search) ||
-      m.location?.toLowerCase().includes(search)
-    );
-  });
+  // Filter materials based on search and alert filters
+  const filteredMaterials = useMemo(() => {
+    let filtered = materials;
+
+    // Search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(m =>
+        m.materialCode?.toLowerCase().includes(search) ||
+        m.description?.toLowerCase().includes(search) ||
+        m.category?.toLowerCase().includes(search) ||
+        m.location?.toLowerCase().includes(search)
+      );
+    }
+
+    // Alert filter
+    if (alertFilter !== 'all') {
+      filtered = filtered.filter(m => {
+        switch (alertFilter) {
+          case 'low-stock':
+            return m.quantity <= LOW_STOCK_THRESHOLD && m.quantity > 0;
+          case 'reorder-threshold':
+            return m.reorderThreshold !== undefined && m.quantity <= m.reorderThreshold && m.quantity > 0;
+          case 'critical':
+            return m.quantity <= 5 && m.quantity > 0;
+          case 'out-of-stock':
+            return m.quantity === 0;
+          default:
+            return true;
+        }
+      });
+    }
+
+    return filtered;
+  }, [materials, searchTerm, alertFilter]);
 
   // Theme-aware classes
   const bgMain = theme === 'dark' ? 'bg-black' : 'bg-slate-50';
@@ -185,6 +258,24 @@ export default function MaterialsPage() {
         message={alertModal.message}
         type={alertModal.type}
       />
+
+      {/* Transaction History Modal */}
+      <TransactionHistoryModal
+        isOpen={historyModal.isOpen}
+        onClose={closeHistoryModal}
+        material={historyModal.material}
+        transactions={historyModal.material ? getMaterialTransactions(historyModal.material.materialCode) : []}
+      />
+
+      {/* Material Details Modal */}
+      <MaterialDetailsModal
+        isOpen={detailsModal.isOpen}
+        onClose={closeDetailsModal}
+        material={detailsModal.material}
+        transactions={detailsModal.material ? getMaterialTransactions(detailsModal.material.materialCode) : []}
+        onEdit={detailsModal.material ? () => handleEdit(detailsModal.material!) : undefined}
+      />
+
       {/* Header */}
       <div className={`${bgHeader} border-b ${borderColor} px-4 sm:px-6 lg:px-8 py-4 sm:py-6 transition-colors duration-300`}>
         <div className="flex items-center justify-between flex-wrap gap-4">
@@ -209,7 +300,8 @@ export default function MaterialsPage() {
       </div>
 
       <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
-        <div className={`${bgCard} rounded-lg border ${borderCard} p-4 transition-colors duration-300`}>
+        {/* Search and Alert Filters */}
+        <div className={`${bgCard} rounded-lg border ${borderCard} p-4 transition-colors duration-300 space-y-4`}>
           <div className="relative">
             <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 ${textSecondary} transition-colors duration-300`} size={20} />
             <input
@@ -219,6 +311,33 @@ export default function MaterialsPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className={`w-full pl-12 pr-4 py-3 border ${borderCard} rounded-xl focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all ${theme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50'} ${textPrimary} placeholder-slate-500 backdrop-blur-sm transition-colors duration-300`}
             />
+          </div>
+          
+          {/* Alert Filter Buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Filter className={textSecondary} size={16} />
+            <span className={`text-sm font-medium ${textSecondary} transition-colors duration-300`}>Alert Filter:</span>
+            {[
+              { value: 'all', label: 'All Items' },
+              { value: 'low-stock', label: 'Low Stock (≤10)' },
+              { value: 'reorder-threshold', label: 'Reorder Threshold' },
+              { value: 'critical', label: 'Critical (≤5)' },
+              { value: 'out-of-stock', label: 'Out of Stock' },
+            ].map((filter) => (
+              <button
+                key={filter.value}
+                onClick={() => setAlertFilter(filter.value as typeof alertFilter)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-300 ${
+                  alertFilter === filter.value
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
+                    : theme === 'dark'
+                      ? 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-white border border-slate-700/50'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -244,52 +363,79 @@ export default function MaterialsPage() {
           <>
             {/* Mobile Card Layout */}
             <div className="lg:hidden space-y-4">
-              {filteredMaterials.map((material) => (
-                <div key={material.id} className={`${bgCard} rounded-lg border ${borderCard} p-4 transition-colors duration-300`}>
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className={`text-sm font-medium ${textPrimary} transition-colors duration-300`}>{material.materialCode}</p>
-                      <p className={`text-xs ${textSecondary} mt-1 line-clamp-2 transition-colors duration-300`}>{material.description}</p>
+              {filteredMaterials.map((material) => {
+                const materialTransactions = getMaterialTransactions(material.materialCode);
+                const hasLowStock = material.quantity <= LOW_STOCK_THRESHOLD && material.quantity > 0;
+                const hasReorderAlert = material.reorderThreshold !== undefined && material.quantity <= material.reorderThreshold && material.quantity > 0;
+                const isCritical = material.quantity <= 5 && material.quantity > 0;
+                const isOutOfStock = material.quantity === 0;
+                
+                return (
+                  <div key={material.id} className={`${bgCard} rounded-lg border ${borderCard} p-4 transition-colors duration-300`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className={`text-sm font-medium ${textPrimary} transition-colors duration-300`}>{material.materialCode}</p>
+                          {(hasLowStock || hasReorderAlert || isCritical || isOutOfStock) && (
+                            <AlertTriangle 
+                              size={12} 
+                              className={isOutOfStock ? 'text-red-400' : isCritical ? 'text-orange-400' : 'text-amber-400'} 
+                            />
+                          )}
+                        </div>
+                        <p className={`text-xs ${textSecondary} mt-1 line-clamp-2 transition-colors duration-300`}>{material.description}</p>
+                      </div>
+                      <div className="flex items-center space-x-1 ml-2">
+                        <button
+                          onClick={() => openDetailsModal(material)}
+                          className={`p-2 text-emerald-400 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
+                          title="View details"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(material)}
+                          className={`p-2 text-blue-400 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(material.id)}
+                          className={`p-2 text-red-400 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-1 ml-2">
-                      <button
-                        onClick={() => handleEdit(material)}
-                        className={`p-2 text-blue-400 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(material.id)}
-                        className={`p-2 text-red-400 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <span className={`px-2 py-1 text-xs font-medium ${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} ${textTertiary} rounded-full transition-colors duration-300`}>
+                        {material.category || 'N/A'}
+                      </span>
+                      <span className={`px-2 py-1 text-xs ${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} ${textSecondary} rounded-full transition-colors duration-300`}>
+                        {material.location || 'N/A'}
+                      </span>
+                    </div>
+                    <div className={`grid grid-cols-3 gap-3 pt-3 border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'} transition-colors duration-300`}>
+                      <div>
+                        <p className={`text-xs ${textMuted} transition-colors duration-300`}>Quantity</p>
+                        <p className={`text-sm font-semibold ${
+                          isOutOfStock ? 'text-red-400' : isCritical ? 'text-orange-400' : hasLowStock ? 'text-amber-400' : textPrimary
+                        } transition-colors duration-300`}>
+                          {material.quantity}
+                        </p>
+                      </div>
+                      <div>
+                        <p className={`text-xs ${textMuted} transition-colors duration-300`}>Unit</p>
+                        <p className={`text-sm ${textTertiary} transition-colors duration-300`}>{material.unit || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className={`text-xs ${textMuted} transition-colors duration-300`}>SAP Qty</p>
+                        <p className={`text-sm ${textTertiary} transition-colors duration-300`}>{material.sapQuantity ?? 'N/A'}</p>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    <span className={`px-2 py-1 text-xs font-medium ${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} ${textTertiary} rounded-full transition-colors duration-300`}>
-                      {material.category || 'N/A'}
-                    </span>
-                    <span className={`px-2 py-1 text-xs ${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} ${textSecondary} rounded-full transition-colors duration-300`}>
-                      {material.location || 'N/A'}
-                    </span>
-                  </div>
-                  <div className={`grid grid-cols-3 gap-3 pt-3 border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'} transition-colors duration-300`}>
-                    <div>
-                      <p className={`text-xs ${textMuted} transition-colors duration-300`}>Quantity</p>
-                      <p className={`text-sm font-semibold ${textPrimary} transition-colors duration-300`}>{material.quantity}</p>
-                    </div>
-                    <div>
-                      <p className={`text-xs ${textMuted} transition-colors duration-300`}>Unit</p>
-                      <p className={`text-sm ${textTertiary} transition-colors duration-300`}>{material.unit || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className={`text-xs ${textMuted} transition-colors duration-300`}>SAP Qty</p>
-                      <p className={`text-sm ${textTertiary} transition-colors duration-300`}>{material.sapQuantity ?? 'N/A'}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Desktop Table Layout */}
@@ -298,48 +444,91 @@ export default function MaterialsPage() {
                 <table className="w-full">
                   <thead className={bgTableHeader}>
                     <tr>
-                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Material Code</th>
-                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Description</th>
-                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Category</th>
-                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Quantity</th>
-                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Unit</th>
-                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider hidden xl:table-cell transition-colors duration-300`}>Location</th>
-                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider hidden xl:table-cell transition-colors duration-300`}>SAP Quantity</th>
-                      <th className={`px-6 py-4 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Actions</th>
+                      <th className={`sticky left-0 z-10 ${bgTableHeader} px-4 py-3 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Material Code</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Description</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider hidden 2xl:table-cell transition-colors duration-300`}>Category</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Quantity</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider hidden xl:table-cell transition-colors duration-300`}>Unit</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider hidden 2xl:table-cell transition-colors duration-300`}>Location</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider hidden 2xl:table-cell transition-colors duration-300`}>SAP Qty</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium ${textTertiary} uppercase tracking-wider transition-colors duration-300`}>Actions</th>
                     </tr>
                   </thead>
                   <tbody className={`${bgCard} ${divideColor} transition-colors duration-300`}>
-                    {filteredMaterials.map((material) => (
-                      <tr key={material.id} className={`${hoverRow} transition-colors group`}>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${textPrimary} transition-colors duration-300`}>{material.materialCode}</td>
-                        <td className={`px-6 py-4 text-sm ${textTertiary} max-w-xs truncate transition-colors duration-300`} title={material.description}>{material.description}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-3 py-1 text-xs font-medium ${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} ${textTertiary} rounded-full transition-colors duration-300`}>
-                            {material.category || 'N/A'}
-                          </span>
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${textPrimary} transition-colors duration-300`}>{material.quantity}</td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${textSecondary} transition-colors duration-300`}>{material.unit || 'N/A'}</td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${textSecondary} hidden xl:table-cell transition-colors duration-300`}>{material.location || 'N/A'}</td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${textSecondary} hidden xl:table-cell transition-colors duration-300`}>{material.sapQuantity ?? 'N/A'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex items-center space-x-2">
+                    {filteredMaterials.map((material) => {
+                      const materialTransactions = getMaterialTransactions(material.materialCode);
+                      const hasLowStock = material.quantity <= LOW_STOCK_THRESHOLD && material.quantity > 0;
+                      const hasReorderAlert = material.reorderThreshold !== undefined && material.quantity <= material.reorderThreshold && material.quantity > 0;
+                      const isCritical = material.quantity <= 5 && material.quantity > 0;
+                      const isOutOfStock = material.quantity === 0;
+                      
+                      return (
+                        <tr key={material.id} className={`${hoverRow} transition-colors group`}>
+                          <td className={`sticky left-0 z-10 ${bgCard} px-4 py-3 whitespace-nowrap text-sm font-medium ${textPrimary} transition-colors duration-300 border-r ${borderColor}`}>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => openDetailsModal(material)}
+                                className="hover:underline text-left"
+                              >
+                                {material.materialCode}
+                              </button>
+                              {(hasLowStock || hasReorderAlert || isCritical || isOutOfStock) && (
+                                <AlertTriangle 
+                                  size={14} 
+                                  className={isOutOfStock ? 'text-red-400' : isCritical ? 'text-orange-400' : 'text-amber-400'} 
+                                />
+                              )}
+                            </div>
+                          </td>
+                          <td className={`px-4 py-3 text-sm ${textTertiary} max-w-[200px] truncate transition-colors duration-300`} title={material.description}>
                             <button
-                              onClick={() => handleEdit(material)}
-                              className={`p-2 text-blue-400 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
+                              onClick={() => openDetailsModal(material)}
+                              className="hover:underline text-left w-full truncate"
                             >
-                              <Edit size={18} />
+                              {material.description}
                             </button>
-                            <button
-                              onClick={() => handleDeleteClick(material.id)}
-                              className={`p-2 text-red-400 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap hidden 2xl:table-cell">
+                            <span className={`px-2 py-1 text-xs font-medium ${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} ${textTertiary} rounded-full transition-colors duration-300`}>
+                              {material.category || 'N/A'}
+                            </span>
+                          </td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${
+                            isOutOfStock ? 'text-red-400' : isCritical ? 'text-orange-400' : hasLowStock ? 'text-amber-400' : textPrimary
+                          } transition-colors duration-300`}>
+                            {material.quantity}
+                          </td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${textSecondary} hidden xl:table-cell transition-colors duration-300`}>{material.unit || 'N/A'}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${textSecondary} hidden 2xl:table-cell transition-colors duration-300`}>{material.location || 'N/A'}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${textSecondary} hidden 2xl:table-cell transition-colors duration-300`}>{material.sapQuantity ?? 'N/A'}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                            <div className="flex items-center space-x-1">
+                              <button
+                                onClick={() => openDetailsModal(material)}
+                                className={`p-1.5 text-emerald-400 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
+                                title="View details"
+                              >
+                                <Eye size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleEdit(material)}
+                                className={`p-1.5 text-blue-400 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
+                                title="Edit material"
+                              >
+                                <Edit size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClick(material.id)}
+                                className={`p-1.5 text-red-400 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
+                                title="Delete material"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -349,118 +538,238 @@ export default function MaterialsPage() {
       </div>
 
       {isModalOpen && (
-        <div className={`fixed inset-0 ${theme === 'dark' ? 'bg-black/70' : 'bg-black/50'} backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-colors duration-300`}>
-          <div className="premium-card p-8 w-full max-w-md animate-slide-in">
-            <h2 className={`text-2xl font-bold ${textPrimary} mb-6 transition-colors duration-300`}>
-              {editingMaterial ? 'Edit Material' : 'Add Material'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="label-dark">Material Code</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.materialCode}
-                  onChange={(e) => setFormData({ ...formData, materialCode: e.target.value })}
-                  className="input-dark"
-                  placeholder="Enter material code"
-                />
-              </div>
-              <div>
-                <label className="label-dark">Description</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="input-dark"
-                  placeholder="Enter description"
-                />
-              </div>
-              <div>
-                <label className="label-dark">Category</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="input-dark"
-                  placeholder="Enter category"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="label-dark">Quantity</label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) })}
-                    className="input-dark"
-                  />
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            className={`absolute inset-0 ${theme === 'dark' ? 'bg-black/70' : 'bg-black/50'} backdrop-blur-sm animate-fade-in`}
+            onClick={() => {
+              setIsModalOpen(false);
+              resetForm();
+            }}
+          />
+          
+          {/* Modal */}
+          <div className="relative w-full max-w-2xl max-h-[90vh] animate-scale-in">
+            {/* Glow effect */}
+            <div className="absolute -inset-1 bg-amber-500/20 rounded-2xl blur-xl opacity-50" />
+            
+            <div className={`${bgCard} relative rounded-2xl shadow-2xl overflow-hidden border ${borderCard}`}>
+              {/* Top gradient line */}
+              <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-500" />
+              
+              <div className="p-6 max-h-[85vh] overflow-y-auto custom-scrollbar">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                      <Package className="text-amber-400" size={24} />
+                    </div>
+                    <div>
+                      <h2 className={`text-xl font-bold ${textPrimary}`}>
+                        {editingMaterial ? 'Edit Material' : 'Add New Material'}
+                      </h2>
+                      <p className={`text-xs ${textSecondary} mt-1`}>
+                        {editingMaterial ? 'Update material information' : 'Fill in the details below'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      resetForm();
+                    }}
+                    className={`p-2 ${theme === 'dark' ? 'hover:bg-slate-800' : 'hover:bg-slate-100'} rounded-lg transition-colors`}
+                  >
+                    <X size={20} className={textSecondary} />
+                  </button>
                 </div>
-                <div>
-                  <label className="label-dark">Unit</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.unit}
-                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="input-dark"
-                    placeholder="e.g., PCS, KG"
-                  />
-                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  {/* Basic Information Section */}
+                  <div className="space-y-4">
+                    <h3 className={`text-sm font-semibold ${textPrimary} flex items-center gap-2`}>
+                      <div className="h-1 w-1 rounded-full bg-amber-500" />
+                      Basic Information
+                    </h3>
+                    
+                    <div>
+                      <label className={`flex items-center gap-2 text-sm font-medium ${textPrimary} mb-2`}>
+                        <Hash size={14} className={textMuted} />
+                        Material Code <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.materialCode}
+                        onChange={(e) => setFormData({ ...formData, materialCode: e.target.value })}
+                        className={`w-full px-4 py-2.5 border ${borderCard} rounded-lg focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all ${theme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50'} ${textPrimary} placeholder-slate-500`}
+                        placeholder="Enter material code"
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`flex items-center gap-2 text-sm font-medium ${textPrimary} mb-2`}>
+                        <File size={14} className={textMuted} />
+                        Description <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        className={`w-full px-4 py-2.5 border ${borderCard} rounded-lg focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all ${theme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50'} ${textPrimary} placeholder-slate-500`}
+                        placeholder="Enter description"
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`flex items-center gap-2 text-sm font-medium ${textPrimary} mb-2`}>
+                        <Tag size={14} className={textMuted} />
+                        Category <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        className={`w-full px-4 py-2.5 border ${borderCard} rounded-lg focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all ${theme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50'} ${textPrimary} placeholder-slate-500`}
+                        placeholder="Enter category"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quantity & Location Section */}
+                  <div className="space-y-4">
+                    <h3 className={`text-sm font-semibold ${textPrimary} flex items-center gap-2`}>
+                      <div className="h-1 w-1 rounded-full bg-amber-500" />
+                      Inventory Details
+                    </h3>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={`flex items-center gap-2 text-sm font-medium ${textPrimary} mb-2`}>
+                          <Hash size={14} className={textMuted} />
+                          Quantity <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          min="0"
+                          step="0.01"
+                          value={formData.quantity}
+                          onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) || 0 })}
+                          className={`w-full px-4 py-2.5 border ${borderCard} rounded-lg focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all ${theme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50'} ${textPrimary} placeholder-slate-500`}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <label className={`flex items-center gap-2 text-sm font-medium ${textPrimary} mb-2`}>
+                          <Box size={14} className={textMuted} />
+                          Unit <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={formData.unit}
+                          onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                          className={`w-full px-4 py-2.5 border ${borderCard} rounded-lg focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all ${theme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50'} ${textPrimary} placeholder-slate-500`}
+                          placeholder="e.g., PCS, KG"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={`flex items-center gap-2 text-sm font-medium ${textPrimary} mb-2`}>
+                        <MapPin size={14} className={textMuted} />
+                        Location <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.location}
+                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                        className={`w-full px-4 py-2.5 border ${borderCard} rounded-lg focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all ${theme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50'} ${textPrimary} placeholder-slate-500`}
+                        placeholder="Enter storage location"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Optional Fields Section */}
+                  <div className="space-y-4">
+                    <h3 className={`text-sm font-semibold ${textPrimary} flex items-center gap-2`}>
+                      <div className="h-1 w-1 rounded-full bg-amber-500" />
+                      Optional Settings
+                    </h3>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={`flex items-center gap-2 text-sm font-medium ${textSecondary} mb-2`}>
+                          <Database size={14} className={textMuted} />
+                          SAP Quantity
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formData.sapQuantity || ''}
+                          onChange={(e) => setFormData({ ...formData, sapQuantity: e.target.value ? parseFloat(e.target.value) : undefined })}
+                          className={`w-full px-4 py-2.5 border ${borderCard} rounded-lg focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all ${theme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50'} ${textPrimary} placeholder-slate-500`}
+                          placeholder="Enter SAP quantity"
+                        />
+                        <p className={`text-xs ${textMuted} mt-1`}>Synchronized with SAP system</p>
+                      </div>
+                      <div>
+                        <label className={`flex items-center gap-2 text-sm font-medium ${textSecondary} mb-2`}>
+                          <AlertTriangle size={14} className={textMuted} />
+                          Reorder Threshold
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formData.reorderThreshold || ''}
+                          onChange={(e) => setFormData({ ...formData, reorderThreshold: e.target.value ? parseFloat(e.target.value) : undefined })}
+                          className={`w-full px-4 py-2.5 border ${borderCard} rounded-lg focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all ${theme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50'} ${textPrimary} placeholder-slate-500`}
+                          placeholder="Alert when quantity ≤ this"
+                        />
+                        <p className={`text-xs ${textMuted} mt-1`}>Triggers alert when reached</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className={`flex gap-3 pt-4 border-t ${borderColor}`}>
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="flex-1 px-4 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-semibold rounded-lg transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="animate-spin" size={18} />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={18} />
+                          {editingMaterial ? 'Update Material' : 'Add Material'}
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        resetForm();
+                      }}
+                      className={`px-4 py-2.5 ${theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-200 hover:bg-slate-300'} ${textPrimary} font-semibold rounded-lg transition-colors`}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
               </div>
-              <div>
-                <label className="label-dark">Location</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  className="input-dark"
-                  placeholder="Enter storage location"
-                />
-              </div>
-              <div>
-                <label className="label-dark">SAP Quantity (Optional)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.sapQuantity || ''}
-                  onChange={(e) => setFormData({ ...formData, sapQuantity: e.target.value ? parseFloat(e.target.value) : undefined })}
-                  className="input-dark"
-                  placeholder="Enter SAP quantity"
-                />
-              </div>
-              <div className="flex space-x-3 pt-6">
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="flex-1 premium-button flex items-center justify-center gap-2"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="animate-spin" size={18} />
-                      Saving...
-                    </>
-                  ) : (
-                    editingMaterial ? 'Update' : 'Add Material'
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    resetForm();
-                  }}
-                  className="flex-1 premium-button-secondary"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

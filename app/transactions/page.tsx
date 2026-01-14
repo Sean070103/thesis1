@@ -5,7 +5,7 @@ import {
   Plus, Search, FileText, Loader2, ChevronDown, Check, X, Filter, 
   Calendar, ArrowUpDown, ArrowUp, ArrowDown, Download,
   Eye, Edit3, Trash2, ChevronLeft, ChevronRight, TrendingUp, TrendingDown,
-  Package, Clock, BarChart3
+  Package, Clock, BarChart3, List, History
 } from 'lucide-react';
 import { 
   getTransactionsFromSupabase, 
@@ -292,6 +292,9 @@ export default function TransactionsPage() {
   const [sortBy, setSortBy] = useState<'date' | 'quantity' | 'materialCode'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
+  // View mode: 'table' or 'timeline'
+  const [viewMode, setViewMode] = useState<'table' | 'timeline'>('table');
+  
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
@@ -409,6 +412,23 @@ export default function TransactionsPage() {
 
     return filtered;
   }, [transactions, searchTerm, typeFilter, dateRange, customDateStart, customDateEnd, sortBy, sortOrder]);
+
+  // Group transactions by date for timeline view
+  const groupedByDate = useMemo(() => {
+    const grouped: { [key: string]: MaterialTransaction[] } = {};
+    filteredAndSortedTransactions.forEach(transaction => {
+      const dateKey = new Date(transaction.date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = [];
+      }
+      grouped[dateKey].push(transaction);
+    });
+    return grouped;
+  }, [filteredAndSortedTransactions]);
 
   // Pagination
   const totalPages = Math.ceil(filteredAndSortedTransactions.length / itemsPerPage);
@@ -875,13 +895,47 @@ export default function TransactionsPage() {
                 }}
               />
             </div>
+
+            <div className="h-6 w-px bg-slate-700/50 hidden md:block" />
+
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-2">
+              <span className={`text-sm ${textSecondary} transition-colors duration-300`}>View:</span>
+              <div className="flex gap-1 bg-slate-800/30 rounded-lg p-1 border border-slate-700/30">
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-300 flex items-center gap-1.5 ${
+                    viewMode === 'table'
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Table View"
+                >
+                  <List size={14} />
+                  Table
+                </button>
+                <button
+                  onClick={() => setViewMode('timeline')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-300 flex items-center gap-1.5 ${
+                    viewMode === 'timeline'
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Timeline View"
+                >
+                  <History size={14} />
+                  History
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="premium-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
+        {/* Table or Timeline View */}
+        {viewMode === 'table' ? (
+          <div className="premium-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
               <thead className={bgTableHeader}>
                 <tr className={`border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'} transition-colors duration-300`}>
                   <th 
@@ -1074,6 +1128,248 @@ export default function TransactionsPage() {
             </div>
           )}
         </div>
+        ) : (
+          /* Timeline/History View - Enhanced */
+          <div className="space-y-6">
+            {isLoading ? (
+              <div className="premium-card p-12">
+                <div className="flex flex-col items-center">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full" />
+                    <Loader2 className="relative animate-spin text-amber-500 mb-4" size={40} />
+                  </div>
+                  <p className={`${textSecondary} font-medium transition-colors duration-300`}>Loading history...</p>
+                </div>
+              </div>
+            ) : Object.keys(groupedByDate).length === 0 ? (
+              <div className="premium-card p-12">
+                <div className="flex flex-col items-center">
+                  <div className={`p-4 ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-100'} rounded-2xl mb-4 border ${borderCard} transition-colors duration-300`}>
+                    <FileText className={textMuted} size={32} />
+                  </div>
+                  <p className={`${textPrimary} font-semibold mb-1 transition-colors duration-300`}>No transactions found</p>
+                  <p className={`${textMuted} text-sm transition-colors duration-300`}>Try adjusting your filters or create a new transaction</p>
+                </div>
+              </div>
+            ) : (
+              Object.entries(groupedByDate).map(([date, dateTransactions]) => {
+                const receiving = dateTransactions.filter(t => t.transactionType === 'receiving');
+                const issuance = dateTransactions.filter(t => t.transactionType === 'issuance');
+                const receivingTotal = receiving.reduce((sum, t) => sum + t.quantity, 0);
+                const issuanceTotal = issuance.reduce((sum, t) => sum + t.quantity, 0);
+                
+                return (
+                  <div key={date} className={`premium-card p-6 space-y-5`}>
+                    {/* Enhanced Date Header with Summary */}
+                    <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b ${borderColor}`}>
+                      <div className="flex items-center gap-4">
+                        <div className={`p-3 ${theme === 'dark' ? 'bg-amber-500/10' : 'bg-amber-50'} rounded-xl border ${theme === 'dark' ? 'border-amber-500/20' : 'border-amber-200'}`}>
+                          <Calendar className="text-amber-400" size={20} />
+                        </div>
+                        <div>
+                          <h3 className={`text-xl font-bold ${textPrimary} mb-1`}>{date}</h3>
+                          <p className={`text-sm ${textSecondary}`}>
+                            {dateTransactions.length} {dateTransactions.length === 1 ? 'transaction' : 'transactions'} total
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Quick Stats */}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {receiving.length > 0 && (
+                          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'} border ${theme === 'dark' ? 'border-emerald-500/20' : 'border-emerald-200'}`}>
+                            <TrendingUp size={14} className="text-emerald-400" />
+                            <span className={`text-xs font-semibold text-emerald-400`}>
+                              {receiving.length} received
+                            </span>
+                            <span className={`text-xs ${textMuted} ml-1`}>
+                              (+{receivingTotal.toLocaleString()})
+                            </span>
+                          </div>
+                        )}
+                        {issuance.length > 0 && (
+                          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${theme === 'dark' ? 'bg-blue-500/10' : 'bg-blue-50'} border ${theme === 'dark' ? 'border-blue-500/20' : 'border-blue-200'}`}>
+                            <TrendingDown size={14} className="text-blue-400" />
+                            <span className={`text-xs font-semibold text-blue-400`}>
+                              {issuance.length} issued
+                            </span>
+                            <span className={`text-xs ${textMuted} ml-1`}>
+                              (–{issuanceTotal.toLocaleString()})
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Receiving Section - Enhanced */}
+                    {receiving.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className={`h-0.5 flex-1 ${theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-200'}`} />
+                          <div className={`flex items-center gap-2 px-4 py-2 ${theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'} rounded-lg border ${theme === 'dark' ? 'border-emerald-500/20' : 'border-emerald-200'}`}>
+                            <div className={`p-1.5 ${theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-100'} rounded-lg`}>
+                              <TrendingUp size={16} className="text-emerald-400" />
+                            </div>
+                            <span className={`text-sm font-bold text-emerald-400`}>
+                              RECEIVING
+                            </span>
+                            <span className={`text-xs ${textMuted} ml-1`}>
+                              ({receiving.length})
+                            </span>
+                          </div>
+                          <div className={`h-0.5 flex-1 ${theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-200'}`} />
+                        </div>
+                        <div className="space-y-2.5">
+                          {receiving.map((transaction) => (
+                            <div
+                              key={transaction.id}
+                              onClick={() => openViewModal(transaction)}
+                              className={`p-4 rounded-xl border ${theme === 'dark' ? 'border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/30' : 'border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50 hover:border-emerald-300'} cursor-pointer transition-all group shadow-sm hover:shadow-md`}
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                                  <div className={`p-2 ${theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-100'} rounded-lg flex-shrink-0`}>
+                                    <TrendingUp size={16} className="text-emerald-400" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                      <div className="flex-1 min-w-0">
+                                        <p className={`text-sm font-bold ${textPrimary} mb-1`}>{transaction.materialCode}</p>
+                                        <p className={`text-xs ${textSecondary} line-clamp-2`}>{transaction.materialDescription}</p>
+                                      </div>
+                                      <div className={`px-3 py-1.5 rounded-lg ${theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-100'} flex-shrink-0`}>
+                                        <span className={`text-sm font-bold text-emerald-400`}>
+                                          +{transaction.quantity.toLocaleString()} {transaction.unit}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 flex-wrap text-xs">
+                                      {transaction.reference && (
+                                        <div className="flex items-center gap-1.5">
+                                          <FileText size={12} className={textMuted} />
+                                          <span className={textMuted}>{transaction.reference}</span>
+                                        </div>
+                                      )}
+                                      <div className="flex items-center gap-1.5">
+                                        <Package size={12} className={textMuted} />
+                                        <span className={textMuted}>{transaction.user}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <Clock size={12} className={textMuted} />
+                                        <span className={textMuted}>
+                                          {new Date(transaction.date).toLocaleTimeString('en-US', {
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                          })}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openViewModal(transaction);
+                                  }}
+                                  className={`p-2 ${theme === 'dark' ? 'bg-slate-800/50 hover:bg-slate-700/50' : 'bg-slate-100 hover:bg-slate-200'} rounded-lg transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0`}
+                                  title="View Details"
+                                >
+                                  <Eye size={16} className={textSecondary} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Issuance Section - Enhanced */}
+                    {issuance.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className={`h-0.5 flex-1 ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-200'}`} />
+                          <div className={`flex items-center gap-2 px-4 py-2 ${theme === 'dark' ? 'bg-blue-500/10' : 'bg-blue-50'} rounded-lg border ${theme === 'dark' ? 'border-blue-500/20' : 'border-blue-200'}`}>
+                            <div className={`p-1.5 ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-100'} rounded-lg`}>
+                              <TrendingDown size={16} className="text-blue-400" />
+                            </div>
+                            <span className={`text-sm font-bold text-blue-400`}>
+                              ISSUANCE
+                            </span>
+                            <span className={`text-xs ${textMuted} ml-1`}>
+                              ({issuance.length})
+                            </span>
+                          </div>
+                          <div className={`h-0.5 flex-1 ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-200'}`} />
+                        </div>
+                        <div className="space-y-2.5">
+                          {issuance.map((transaction) => (
+                            <div
+                              key={transaction.id}
+                              onClick={() => openViewModal(transaction)}
+                              className={`p-4 rounded-xl border ${theme === 'dark' ? 'border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 hover:border-blue-500/30' : 'border-blue-200 bg-blue-50/50 hover:bg-blue-50 hover:border-blue-300'} cursor-pointer transition-all group shadow-sm hover:shadow-md`}
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                                  <div className={`p-2 ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-100'} rounded-lg flex-shrink-0`}>
+                                    <TrendingDown size={16} className="text-blue-400" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                      <div className="flex-1 min-w-0">
+                                        <p className={`text-sm font-bold ${textPrimary} mb-1`}>{transaction.materialCode}</p>
+                                        <p className={`text-xs ${textSecondary} line-clamp-2`}>{transaction.materialDescription}</p>
+                                      </div>
+                                      <div className={`px-3 py-1.5 rounded-lg ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-100'} flex-shrink-0`}>
+                                        <span className={`text-sm font-bold text-blue-400`}>
+                                          –{transaction.quantity.toLocaleString()} {transaction.unit}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 flex-wrap text-xs">
+                                      {transaction.reference && (
+                                        <div className="flex items-center gap-1.5">
+                                          <FileText size={12} className={textMuted} />
+                                          <span className={textMuted}>{transaction.reference}</span>
+                                        </div>
+                                      )}
+                                      <div className="flex items-center gap-1.5">
+                                        <Package size={12} className={textMuted} />
+                                        <span className={textMuted}>{transaction.user}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <Clock size={12} className={textMuted} />
+                                        <span className={textMuted}>
+                                          {new Date(transaction.date).toLocaleTimeString('en-US', {
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                          })}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openViewModal(transaction);
+                                  }}
+                                  className={`p-2 ${theme === 'dark' ? 'bg-slate-800/50 hover:bg-slate-700/50' : 'bg-slate-100 hover:bg-slate-200'} rounded-lg transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0`}
+                                  title="View Details"
+                                >
+                                  <Eye size={16} className={textSecondary} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
       </div>
 
       {/* Create/Edit Modal */}

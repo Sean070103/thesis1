@@ -8,6 +8,7 @@ export interface Material {
   location: string;
   lastUpdated: string;
   sapQuantity?: number;
+  reorderThreshold?: number; // Threshold for reorder alerts
 }
 
 export interface MaterialTransaction {
@@ -64,6 +65,7 @@ export interface DashboardMetrics {
     timestamp: string;
   }>;
 }
+
 
 
 
