@@ -308,6 +308,7 @@ export default function TransactionsPage() {
     unit: '',
     user: '',
     notes: '',
+    date: new Date().toISOString().slice(0, 10), // YYYY-MM-DD for date input (issuance/receiving date)
   });
 
   // Custom modal states
@@ -471,6 +472,9 @@ export default function TransactionsPage() {
 
     if (isEditMode && selectedTransaction) {
       // Update existing transaction
+      const dateStr = formData.date && formData.date.length >= 10
+        ? (formData.date.includes('T') ? formData.date : formData.date + 'T12:00:00.000Z')
+        : selectedTransaction.date;
       const updatedTransaction: MaterialTransaction = {
         ...selectedTransaction,
         materialCode: formData.materialCode!,
@@ -478,6 +482,7 @@ export default function TransactionsPage() {
         transactionType: formData.transactionType as 'receiving' | 'issuance',
         quantity: formData.quantity || 0,
         unit: formData.unit || selectedMaterial?.unit || '',
+        date: dateStr,
         user: formData.user!.trim(),
         notes: formData.notes?.trim(),
       };
@@ -492,6 +497,9 @@ export default function TransactionsPage() {
       }
     } else {
       // Create new transaction
+      const dateStr = formData.date && formData.date.length >= 10
+        ? (formData.date.includes('T') ? formData.date : formData.date + 'T12:00:00.000Z')
+        : new Date().toISOString();
       const transaction: MaterialTransaction = {
         id: generateId(),
         materialCode: formData.materialCode!,
@@ -499,7 +507,7 @@ export default function TransactionsPage() {
         transactionType: formData.transactionType as 'receiving' | 'issuance',
         quantity: formData.quantity || 0,
         unit: formData.unit || selectedMaterial?.unit || '',
-        date: new Date().toISOString(),
+        date: dateStr,
         user: formData.user!.trim(),
         reference: generateReference(formData.transactionType as 'receiving' | 'issuance'),
         notes: formData.notes?.trim(),
@@ -606,6 +614,7 @@ export default function TransactionsPage() {
       unit: '',
       user: '',
       notes: '',
+      date: new Date().toISOString().slice(0, 10),
     });
   };
 
@@ -624,6 +633,7 @@ export default function TransactionsPage() {
       unit: transaction.unit,
       user: transaction.user,
       notes: transaction.notes || '',
+      date: transaction.date ? transaction.date.slice(0, 10) : new Date().toISOString().slice(0, 10),
     });
     setIsEditMode(true);
     setIsModalOpen(true);
@@ -765,7 +775,7 @@ export default function TransactionsPage() {
                 <Download size={16} className="text-red-400" />
                 <span className={`text-sm font-medium ${textTertiary} transition-colors duration-300`}>Export PDF</span>
               </button>
-              
+
               <button
                 onClick={() => {
                   resetForm();
@@ -943,7 +953,7 @@ export default function TransactionsPage() {
                     onClick={() => handleSort('date')}
                   >
                     <div className="flex items-center gap-2">
-                      Date
+                      Date &amp; Time
                       {sortBy === 'date' && (sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                     </div>
                   </th>
@@ -1004,10 +1014,12 @@ export default function TransactionsPage() {
                       className={`${hoverRow} transition-colors group cursor-pointer`}
                       onClick={() => openViewModal(transaction)}
                     >
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${textSecondary} transition-colors duration-300`}>
-                        {new Date(transaction.date).toLocaleDateString()}
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm transition-colors duration-300`}>
+                        <span className={`block font-medium ${textPrimary} transition-colors duration-300`}>
+                          {new Date(transaction.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </span>
                         <span className={`block text-xs ${textMuted} transition-colors duration-300`}>
-                          {new Date(transaction.date).toLocaleTimeString()}
+                          {new Date(transaction.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -1244,6 +1256,18 @@ export default function TransactionsPage() {
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-3 flex-wrap text-xs">
+                                      <div className="flex items-center gap-1.5">
+                                        <Calendar size={12} className={textMuted} />
+                                        <span className={textMuted}>
+                                          {new Date(transaction.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <Clock size={12} className={textMuted} />
+                                        <span className={textMuted}>
+                                          {new Date(transaction.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                      </div>
                                       {transaction.reference && (
                                         <div className="flex items-center gap-1.5">
                                           <FileText size={12} className={textMuted} />
@@ -1253,15 +1277,6 @@ export default function TransactionsPage() {
                                       <div className="flex items-center gap-1.5">
                                         <Package size={12} className={textMuted} />
                                         <span className={textMuted}>{transaction.user}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1.5">
-                                        <Clock size={12} className={textMuted} />
-                                        <span className={textMuted}>
-                                          {new Date(transaction.date).toLocaleTimeString('en-US', {
-                                            hour: '2-digit',
-                                            minute: '2-digit'
-                                          })}
-                                        </span>
                                       </div>
                                     </div>
                                   </div>
@@ -1326,6 +1341,18 @@ export default function TransactionsPage() {
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-3 flex-wrap text-xs">
+                                      <div className="flex items-center gap-1.5">
+                                        <Calendar size={12} className={textMuted} />
+                                        <span className={textMuted}>
+                                          {new Date(transaction.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <Clock size={12} className={textMuted} />
+                                        <span className={textMuted}>
+                                          {new Date(transaction.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                      </div>
                                       {transaction.reference && (
                                         <div className="flex items-center gap-1.5">
                                           <FileText size={12} className={textMuted} />
@@ -1335,15 +1362,6 @@ export default function TransactionsPage() {
                                       <div className="flex items-center gap-1.5">
                                         <Package size={12} className={textMuted} />
                                         <span className={textMuted}>{transaction.user}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1.5">
-                                        <Clock size={12} className={textMuted} />
-                                        <span className={textMuted}>
-                                          {new Date(transaction.date).toLocaleTimeString('en-US', {
-                                            hour: '2-digit',
-                                            minute: '2-digit'
-                                          })}
-                                        </span>
                                       </div>
                                     </div>
                                   </div>
@@ -1410,6 +1428,17 @@ export default function TransactionsPage() {
                     onChange={handleMaterialChange}
                     placeholder="Select Material"
                     searchable
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">Date (Issuance / Receiving)</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.date || new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    className="w-full px-4 py-3.5 rounded-xl text-white placeholder-slate-500 bg-slate-900/50 border border-slate-700/50 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all duration-300"
                   />
                 </div>
 

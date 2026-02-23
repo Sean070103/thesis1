@@ -283,7 +283,7 @@ export default function MaterialsPage() {
             <h1 className={`text-lg sm:text-xl font-semibold ${textPrimary} transition-colors duration-300`}>Material Records</h1>
             <p className={`text-xs sm:text-sm ${textSecondary} mt-1 transition-colors duration-300`}>Manage inventory data synchronized with SAP</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             <button
               onClick={() => {
                 resetForm();

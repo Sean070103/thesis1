@@ -1,6 +1,10 @@
 import { getSupabase, isSupabaseConfigured } from './supabase';
 import { Material, MaterialTransaction, Defect, Alert } from '@/types';
+import { IVMS_MATERIALS, IVMS_TRANSACTIONS, IVMS_DEFECTS } from '@/data/ivms-data';
 import bcrypt from 'bcryptjs';
+
+let _ivmsSeeded = false;
+let _ivmsTransactionsSeeded = false;
 
 // Helper to get localStorage data safely
 const getFromStorage = <T>(key: string, defaultValue: T): T => {
@@ -26,12 +30,217 @@ const saveToStorage = <T>(key: string, data: T): void => {
 // MATERIALS
 // ============================================
 
-export async function getMaterialsFromSupabase(): Promise<Material[]> {
+async function seedIvmsDataIfEmpty(): Promise<void> {
+  if (_ivmsSeeded || typeof window === 'undefined') return;
   const supabase = getSupabase();
-  
-  // Fallback to localStorage if Supabase not configured
+  let materialsEmpty = false;
   if (!supabase) {
-    return getFromStorage<Material[]>('materials', []);
+    const stored = getFromStorage<Material[]>('materials', []);
+    materialsEmpty = stored.length === 0;
+  } else {
+    const { data } = await supabase.from('materials').select('id').limit(1);
+    materialsEmpty = !data || data.length === 0;
+  }
+  if (!materialsEmpty) {
+    _ivmsSeeded = true;
+    return;
+  }
+  _ivmsSeeded = true;
+  _ivmsTransactionsSeeded = true;
+  for (const row of IVMS_MATERIALS) {
+    const material: Material = {
+      id: generateId(),
+      materialCode: row.materialCode,
+      description: row.description,
+      category: row.category,
+      unit: row.unit,
+      quantity: row.quantity,
+      location: row.location,
+      sapQuantity: row.sapQuantity,
+      reorderThreshold: row.reorderThreshold,
+      lastUpdated: new Date().toISOString(),
+    };
+    await saveMaterialToSupabase(material);
+  }
+  for (const row of IVMS_TRANSACTIONS) {
+    const transaction: MaterialTransaction = {
+      id: generateId(),
+      materialCode: row.materialCode,
+      materialDescription: row.materialDescription,
+      transactionType: row.transactionType,
+      quantity: row.quantity,
+      unit: row.unit,
+      date: row.date,
+      user: row.user,
+      reference: row.reference,
+      notes: row.notes,
+    };
+    await saveTransactionToSupabase(transaction);
+  }
+}
+
+/**
+ * Replace all materials and transactions with IVMS 2026 data.
+ * Call this to show full 2026 transaction history (e.g. when you still see old 2025 data).
+ */
+export async function replaceDataWithIvms2026(): Promise<{ success: boolean; message: string }> {
+  if (typeof window === 'undefined') return { success: false, message: 'Cannot run on server' };
+  const supabase = getSupabase();
+  try {
+    _ivmsSeeded = false;
+    _ivmsTransactionsSeeded = false;
+    if (!supabase) {
+      saveToStorage('materials', []);
+      saveToStorage('transactions', []);
+    } else {
+      const { data: txRows } = await supabase.from('material_transactions').select('id');
+      const txIds = (txRows || []).map((r: { id: string }) => r.id);
+      if (txIds.length > 0) {
+        const chunk = 100;
+        for (let i = 0; i < txIds.length; i += chunk) {
+          await supabase.from('material_transactions').delete().in('id', txIds.slice(i, i + chunk));
+        }
+      }
+      const { data: matRows } = await supabase.from('materials').select('id');
+      const matIds = (matRows || []).map((r: { id: string }) => r.id);
+      if (matIds.length > 0) {
+        const chunk = 100;
+        for (let i = 0; i < matIds.length; i += chunk) {
+          await supabase.from('materials').delete().in('id', matIds.slice(i, i + chunk));
+        }
+      }
+    }
+    await seedIvmsDataIfEmpty();
+    return { success: true, message: 'IVMS 2026 data loaded. Transaction history now shows 2026.' };
+  } catch (e) {
+    console.error(e);
+    return { success: false, message: e instanceof Error ? e.message : 'Failed to load IVMS data' };
+  }
+}
+
+async function seedIvmsTransactionsIfEmpty(): Promise<void> {
+  if (_ivmsTransactionsSeeded || typeof window === 'undefined') return;
+  const supabase = getSupabase();
+  let transactionsEmpty = false;
+  if (!supabase) {
+    const stored = getFromStorage<MaterialTransaction[]>('transactions', []);
+    transactionsEmpty = stored.length === 0;
+  } else {
+    const { data } = await supabase.from('material_transactions').select('id').limit(1);
+    transactionsEmpty = !data || data.length === 0;
+  }
+  if (!transactionsEmpty) {
+    _ivmsTransactionsSeeded = true;
+    return;
+  }
+  _ivmsTransactionsSeeded = true;
+  for (const row of IVMS_TRANSACTIONS) {
+    const transaction: MaterialTransaction = {
+      id: generateId(),
+      materialCode: row.materialCode,
+      materialDescription: row.materialDescription,
+      transactionType: row.transactionType,
+      quantity: row.quantity,
+      unit: row.unit,
+      date: row.date,
+      user: row.user,
+      reference: row.reference,
+      notes: row.notes,
+    };
+    await saveTransactionToSupabase(transaction);
+  }
+}
+
+const IVMS_2026_DEFAULT_FLAG = 'ivms_2026_default_loaded';
+const IVMS_2026_QUANTITIES_SYNCED_FLAG = 'ivms_2026_quantities_synced_v2';
+
+function dedupeTransactions(list: MaterialTransaction[]): MaterialTransaction[] {
+  const seen = new Set<string>();
+  const result: MaterialTransaction[] = [];
+
+  for (const t of list) {
+    const key = [
+      t.materialCode,
+      t.transactionType,
+      t.quantity,
+      t.unit,
+      t.date,
+      t.reference,
+      t.user,
+    ].join('|');
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(t);
+    }
+  }
+
+  return result;
+}
+
+async function syncIvmsQuantitiesFromSheet(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (localStorage.getItem(IVMS_2026_QUANTITIES_SYNCED_FLAG)) return;
+
+  const supabase = getSupabase();
+
+  if (!supabase) {
+    // LocalStorage mode: update existing materials array
+    const materials = getFromStorage<Material[]>('materials', []);
+    let changed = false;
+
+    for (const ivms of IVMS_MATERIALS) {
+      const index = materials.findIndex(m => m.materialCode === ivms.materialCode);
+      if (index >= 0 && materials[index].quantity !== ivms.quantity) {
+        materials[index].quantity = ivms.quantity;
+        materials[index].lastUpdated = new Date().toISOString();
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      saveToStorage('materials', materials);
+    }
+  } else {
+    // Supabase mode: push quantities for the IVMS material codes
+    for (const ivms of IVMS_MATERIALS) {
+      await supabase
+        .from('materials')
+        .update({
+          quantity: ivms.quantity,
+          last_updated: new Date().toISOString(),
+        })
+        .eq('material_code', ivms.materialCode);
+    }
+  }
+
+  try {
+    localStorage.setItem(IVMS_2026_QUANTITIES_SYNCED_FLAG, '1');
+  } catch {
+    // ignore quota errors
+  }
+}
+
+export async function getMaterialsFromSupabase(): Promise<Material[]> {
+  if (typeof window !== 'undefined' && !localStorage.getItem(IVMS_2026_DEFAULT_FLAG)) {
+    await replaceDataWithIvms2026();
+    try {
+      localStorage.setItem(IVMS_2026_DEFAULT_FLAG, '1');
+    } catch (_) {}
+  }
+
+  const supabase = getSupabase();
+
+  // One-time sync so Material Records quantities match IVMS summary sheet
+  await syncIvmsQuantitiesFromSheet();
+  
+  if (!supabase) {
+    let list = getFromStorage<Material[]>('materials', []);
+    if (list.length === 0) {
+      await seedIvmsDataIfEmpty();
+      list = getFromStorage<Material[]>('materials', []);
+    }
+    return list;
   }
 
   const { data, error } = await supabase
@@ -44,7 +253,7 @@ export async function getMaterialsFromSupabase(): Promise<Material[]> {
     return getFromStorage<Material[]>('materials', []);
   }
 
-  return (data || []).map(m => ({
+  const list = (data || []).map(m => ({
     id: m.id,
     materialCode: m.material_code,
     description: m.description,
@@ -56,6 +265,24 @@ export async function getMaterialsFromSupabase(): Promise<Material[]> {
     reorderThreshold: m.reorder_threshold ? Number(m.reorder_threshold) : undefined,
     lastUpdated: m.last_updated,
   }));
+
+  if (list.length === 0) {
+    await seedIvmsDataIfEmpty();
+    const { data: retry } = await supabase.from('materials').select('*').order('created_at', { ascending: false });
+    return (retry || []).map(m => ({
+      id: m.id,
+      materialCode: m.material_code,
+      description: m.description,
+      category: m.category,
+      unit: m.unit,
+      quantity: Number(m.quantity),
+      location: m.location,
+      sapQuantity: m.sap_quantity ? Number(m.sap_quantity) : undefined,
+      reorderThreshold: m.reorder_threshold ? Number(m.reorder_threshold) : undefined,
+      lastUpdated: m.last_updated,
+    }));
+  }
+  return list;
 }
 
 export async function saveMaterialToSupabase(material: Material): Promise<boolean> {
@@ -287,7 +514,13 @@ export async function getTransactionsFromSupabase(): Promise<MaterialTransaction
   const supabase = getSupabase();
   
   if (!supabase) {
-    return getFromStorage<MaterialTransaction[]>('transactions', []);
+    let list = getFromStorage<MaterialTransaction[]>('transactions', []);
+    if (list.length === 0) {
+      await seedIvmsDataIfEmpty();
+      await seedIvmsTransactionsIfEmpty();
+      list = getFromStorage<MaterialTransaction[]>('transactions', []);
+    }
+    return dedupeTransactions(list);
   }
 
   const { data, error } = await supabase
@@ -300,7 +533,7 @@ export async function getTransactionsFromSupabase(): Promise<MaterialTransaction
     return getFromStorage<MaterialTransaction[]>('transactions', []);
   }
 
-  return (data || []).map(t => ({
+  const list = (data || []).map(t => ({
     id: t.id,
     materialCode: t.material_code,
     materialDescription: t.material_description,
@@ -312,6 +545,25 @@ export async function getTransactionsFromSupabase(): Promise<MaterialTransaction
     reference: t.reference,
     notes: t.notes,
   }));
+
+  if (list.length === 0) {
+    await seedIvmsDataIfEmpty();
+    await seedIvmsTransactionsIfEmpty();
+    const { data: retry } = await supabase.from('material_transactions').select('*').order('date', { ascending: false });
+    return dedupeTransactions((retry || []).map(t => ({
+      id: t.id,
+      materialCode: t.material_code,
+      materialDescription: t.material_description,
+      transactionType: t.transaction_type as 'receiving' | 'issuance',
+      quantity: Number(t.quantity),
+      unit: t.unit,
+      date: t.date,
+      user: t.user_name,
+      reference: t.reference,
+      notes: t.notes,
+    })));
+  }
+  return dedupeTransactions(list);
 }
 
 export async function saveTransactionToSupabase(transaction: MaterialTransaction): Promise<boolean> {
