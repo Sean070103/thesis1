@@ -330,7 +330,17 @@ export async function saveMaterialToSupabase(material: Material): Promise<boolea
     return true;
   }
 
-  const materialDataBase = {
+  const materialDataBase: {
+    material_code: string;
+    description: string;
+    category: string;
+    unit: string;
+    quantity: number;
+    location: string;
+    sap_quantity: number | undefined;
+    reorder_threshold?: number;
+    last_updated: string;
+  } = {
     material_code: material.materialCode,
     description: material.description,
     category: material.category,
