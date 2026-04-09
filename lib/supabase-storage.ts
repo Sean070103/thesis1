@@ -154,6 +154,21 @@ async function seedIvmsTransactionsIfEmpty(): Promise<void> {
 const IVMS_2026_DEFAULT_FLAG = 'ivms_2026_default_loaded';
 const IVMS_2026_QUANTITIES_SYNCED_FLAG = 'ivms_2026_quantities_synced_v2';
 
+function getIvmsMaterialsFallback(): Material[] {
+  return IVMS_MATERIALS.map((row) => ({
+    id: generateId(),
+    materialCode: row.materialCode,
+    description: row.description,
+    category: row.category,
+    unit: row.unit,
+    quantity: row.quantity,
+    location: row.location,
+    sapQuantity: row.sapQuantity,
+    reorderThreshold: row.reorderThreshold,
+    lastUpdated: new Date().toISOString(),
+  }));
+}
+
 function dedupeTransactions(list: MaterialTransaction[]): MaterialTransaction[] {
   const seen = new Set<string>();
   const result: MaterialTransaction[] = [];
@@ -250,7 +265,12 @@ export async function getMaterialsFromSupabase(): Promise<Material[]> {
 
   if (error) {
     console.error('Error fetching materials:', error);
-    return getFromStorage<Material[]>('materials', []);
+    let fallback = getFromStorage<Material[]>('materials', []);
+    if (fallback.length === 0) {
+      fallback = getIvmsMaterialsFallback();
+      saveToStorage('materials', fallback);
+    }
+    return fallback;
   }
 
   const list = (data || []).map(m => ({
@@ -269,7 +289,7 @@ export async function getMaterialsFromSupabase(): Promise<Material[]> {
   if (list.length === 0) {
     await seedIvmsDataIfEmpty();
     const { data: retry } = await supabase.from('materials').select('*').order('created_at', { ascending: false });
-    return (retry || []).map(m => ({
+    const mappedRetry = (retry || []).map(m => ({
       id: m.id,
       materialCode: m.material_code,
       description: m.description,
@@ -281,6 +301,15 @@ export async function getMaterialsFromSupabase(): Promise<Material[]> {
       reorderThreshold: m.reorder_threshold ? Number(m.reorder_threshold) : undefined,
       lastUpdated: m.last_updated,
     }));
+    if (mappedRetry.length === 0) {
+      let fallback = getFromStorage<Material[]>('materials', []);
+      if (fallback.length === 0) {
+        fallback = getIvmsMaterialsFallback();
+        saveToStorage('materials', fallback);
+      }
+      return fallback;
+    }
+    return mappedRetry;
   }
   return list;
 }
