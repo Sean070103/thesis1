@@ -342,21 +342,33 @@ export async function saveMaterialToSupabase(material: Material): Promise<boolea
     last_updated: new Date().toISOString(),
   };
 
-  // Check if material exists
-  const { data: existing } = await supabase
+  // Check if material exists by id first
+  const { data: existingById } = await supabase
     .from('materials')
     .select('id')
     .eq('id', material.id)
     .single();
 
+  // Fallback check by material code (handles fallback/local IDs not matching DB IDs)
+  let existingByCode: { id: string } | null = null;
+  if (!existingById) {
+    const { data } = await supabase
+      .from('materials')
+      .select('id')
+      .eq('material_code', material.materialCode)
+      .maybeSingle();
+    existingByCode = data as { id: string } | null;
+  }
+
   let error;
 
-  if (existing) {
+  if (existingById || existingByCode) {
     // Update existing material
+    const targetId = existingById?.id || existingByCode?.id;
     const result = await supabase
       .from('materials')
       .update(materialData)
-      .eq('id', material.id);
+      .eq('id', targetId);
     error = result.error;
   } else {
     // Insert new material
@@ -370,6 +382,16 @@ export async function saveMaterialToSupabase(material: Material): Promise<boolea
   }
 
   if (error) {
+    // If insert collided on unique material_code, retry as update by code
+    if (error.code === '23505') {
+      const retry = await supabase
+        .from('materials')
+        .update(materialData)
+        .eq('material_code', material.materialCode);
+      if (!retry.error) return true;
+      console.error('Error saving material after retry update:', retry.error);
+      return false;
+    }
     console.error('Error saving material:', error);
     return false;
   }
