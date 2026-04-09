@@ -330,7 +330,7 @@ export async function saveMaterialToSupabase(material: Material): Promise<boolea
     return true;
   }
 
-  const materialData = {
+  const materialDataBase = {
     material_code: material.materialCode,
     description: material.description,
     category: material.category,
@@ -360,25 +360,36 @@ export async function saveMaterialToSupabase(material: Material): Promise<boolea
     existingByCode = data as { id: string } | null;
   }
 
-  let error;
+  const performSave = async (payload: typeof materialDataBase) => {
+    if (existingById || existingByCode) {
+      // Update existing material
+      const targetId = existingById?.id || existingByCode?.id;
+      return await supabase
+        .from('materials')
+        .update(payload)
+        .eq('id', targetId);
+    }
 
-  if (existingById || existingByCode) {
-    // Update existing material
-    const targetId = existingById?.id || existingByCode?.id;
-    const result = await supabase
-      .from('materials')
-      .update(materialData)
-      .eq('id', targetId);
-    error = result.error;
-  } else {
     // Insert new material
-    const result = await supabase
+    return await supabase
       .from('materials')
       .insert({
         id: material.id,
-        ...materialData,
+        ...payload,
       });
-    error = result.error;
+  };
+
+  let { error } = await performSave(materialDataBase);
+
+  // Compatibility fallback: older DBs may not have reorder_threshold yet.
+  if (
+    error &&
+    (error.message?.toLowerCase().includes('reorder_threshold') ||
+      error.details?.toLowerCase().includes('reorder_threshold'))
+  ) {
+    const { reorder_threshold: _ignored, ...withoutReorderThreshold } = materialDataBase;
+    const retry = await performSave(withoutReorderThreshold);
+    error = retry.error;
   }
 
   if (error) {
