@@ -407,7 +407,7 @@ export async function saveMaterialToSupabase(material: Material): Promise<boolea
     if (error.code === '23505') {
       const retry = await supabase
         .from('materials')
-        .update(materialData)
+        .update(materialDataBase)
         .eq('material_code', material.materialCode);
       if (!retry.error) return true;
       console.error('Error saving material after retry update:', retry.error);
