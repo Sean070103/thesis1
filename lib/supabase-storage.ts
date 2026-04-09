@@ -5,6 +5,11 @@ import bcrypt from 'bcryptjs';
 
 let _ivmsSeeded = false;
 let _ivmsTransactionsSeeded = false;
+let _lastMaterialSaveError: string | null = null;
+
+export function getLastMaterialSaveError(): string | null {
+  return _lastMaterialSaveError;
+}
 
 // Helper to get localStorage data safely
 const getFromStorage = <T>(key: string, defaultValue: T): T => {
@@ -316,6 +321,7 @@ export async function getMaterialsFromSupabase(): Promise<Material[]> {
 
 export async function saveMaterialToSupabase(material: Material): Promise<boolean> {
   const supabase = getSupabase();
+  _lastMaterialSaveError = null;
   
   // Fallback to localStorage if Supabase not configured
   if (!supabase) {
@@ -410,9 +416,19 @@ export async function saveMaterialToSupabase(material: Material): Promise<boolea
         .update(materialDataBase)
         .eq('material_code', material.materialCode);
       if (!retry.error) return true;
+      _lastMaterialSaveError = [
+        retry.error.code || 'UNKNOWN',
+        retry.error.message || 'Failed to save material',
+        retry.error.details || ''
+      ].filter(Boolean).join(' - ');
       console.error('Error saving material after retry update:', retry.error);
       return false;
     }
+    _lastMaterialSaveError = [
+      error.code || 'UNKNOWN',
+      error.message || 'Failed to save material',
+      error.details || ''
+    ].filter(Boolean).join(' - ');
     console.error('Error saving material:', error);
     return false;
   }

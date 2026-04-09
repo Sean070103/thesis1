@@ -7,7 +7,8 @@ import {
   saveMaterialToSupabase, 
   deleteMaterialFromSupabase,
   getTransactionsFromSupabase,
-  generateId 
+  generateId,
+  getLastMaterialSaveError
 } from '@/lib/supabase-storage';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Material, MaterialTransaction } from '@/types';
@@ -143,7 +144,14 @@ export default function MaterialsPage() {
       setIsModalOpen(false);
       resetForm();
     } else {
-      showAlert('Error', 'Failed to save material. Please try again.', 'error');
+      const backendError = getLastMaterialSaveError();
+      showAlert(
+        'Error',
+        backendError
+          ? `Failed to save material. ${backendError}`
+          : 'Failed to save material. Please try again.',
+        'error'
+      );
     }
     
     setIsSaving(false);
